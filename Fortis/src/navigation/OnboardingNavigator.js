@@ -7,6 +7,9 @@ import OnboardingFitnessLevel from '../screens/onboarding/OnboardingFitnessLevel
 import OnboardingGoal from '../screens/onboarding/OnboardingGoal';
 import { colors } from '../utils/colors';
 import SignUpScreen from '../screens/auth/SignUpScreen';
+import LoginScreen from '../screens/auth/LoginScreen';
+import DashboardScreen from '../screens/main/DashboardScreen';
+import ProfileScreen from '../screens/main/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -33,6 +36,10 @@ const OnboardingNavigator = () => {
       />
      
      <Stack.Screen name="SignUp" component={SignUpScreen} />
+     <Stack.Screen name="Login" component={LoginScreen} />
+     <Stack.Screen name="Dashboard" component={DashboardScreen} />
+     
+     <Stack.Screen name="Profile" component={ProfileScreen} />
 
       <Stack.Screen name="FitnessLevel" component={OnboardingFitnessLevel} />
       <Stack.Screen name="Goal" component={OnboardingGoal} />

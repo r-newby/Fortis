@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from '../../supabase';
 import {
   View,
   Text,
@@ -7,9 +8,10 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { supabase } from '../../supabase';
+import { useApp } from '../../context/AppContext';
 
 export default function LoginScreen({ navigation }) {
+  const { reloadData, userProfile } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,10 +24,12 @@ export default function LoginScreen({ navigation }) {
 
     setLoading(true);
 
+    console.log('Login attempt with:', { email, password });
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    console.log('Supabase response:', { data, error });
 
     setLoading(false);
 
@@ -34,20 +38,11 @@ export default function LoginScreen({ navigation }) {
       return;
     }
 
-    // Check if user has completed onboarding (username exists)
-    const user = data.user;
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('id', user.id)
-      .single();
+    // ✅ Load profile and other data from Supabase
+    await reloadData();
 
-    if (profileError) {
-      Alert.alert('Profile Error', profileError.message);
-      return;
-    }
-
-    if (!profile?.username) {
+    // ✅ Navigate based on whether username is set
+    if (!userProfile?.username) {
       navigation.reset({
         index: 0,
         routes: [{ name: 'Username' }],
@@ -55,7 +50,7 @@ export default function LoginScreen({ navigation }) {
     } else {
       navigation.reset({
         index: 0,
-        routes: [{ name: 'MainTabs' }], // change to your home route
+        routes: [{ name: 'Dashboard' }],
       });
     }
   };
@@ -98,7 +93,9 @@ export default function LoginScreen({ navigation }) {
         onPress={handleLogin}
         disabled={!email || !password || loading}
       >
-        <Text style={styles.buttonText}>{loading ? 'Logging in...' : 'Continue'}</Text>
+        <Text style={styles.buttonText}>
+          {loading ? 'Logging in...' : 'Continue'}
+        </Text>
       </TouchableOpacity>
 
       <Text style={styles.footerText}>

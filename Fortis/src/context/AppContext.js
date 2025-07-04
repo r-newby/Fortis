@@ -1,6 +1,7 @@
 // src/context/AppContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { storage } from '../utils/asyncStorage';
+import { supabase } from '../supabase';
 
 const AppContext = createContext();
 
@@ -23,32 +24,68 @@ export const AppProvider = ({ children }) => {
     loadAppData();
   }, []);
 
-  const loadAppData = async () => {
-    try {
-      setIsLoading(true);
-      const [profile, workoutData, records] = await Promise.all([
-        storage.getUserProfile(),
-        storage.getWorkouts(),
-        storage.getPersonalRecords(),
-      ]);
+const loadAppData = async () => {
+  try {
+    setIsLoading(true);
 
-      setUserProfile(profile);
-      setWorkouts(workoutData);
-      setPersonalRecords(records);
-    } catch (error) {
-      console.error('Error loading app data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-  const updateUserProfile = async (profile) => {
-    const success = await storage.setUserProfile(profile);
-    if (success) {
+    if (authError || !user) {
+      console.warn('User not logged in:', authError);
+      setUserProfile(null);
+      return;
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching profile:', profileError.message);
+    } else {
       setUserProfile(profile);
     }
-    return success;
-  };
+
+    // You can still keep local storage for workouts & PRs if you want
+    const [workoutData, records] = await Promise.all([
+      storage.getWorkouts(),
+      storage.getPersonalRecords(),
+    ]);
+
+    setWorkouts(workoutData);
+    setPersonalRecords(records);
+  } catch (error) {
+    console.error('Error loading app data:', error);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+  const updateUserProfile = async (profileUpdate) => {
+  const {
+    data,
+    error,
+  } = await supabase
+    .from('profiles')
+    .update(profileUpdate)
+    .eq('id', userProfile.id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Update profile error:', error.message);
+    return false;
+  }
+
+  setUserProfile(data);
+  return true;
+};
+
 
   const saveWorkout = async (workout) => {
     const success = await storage.saveWorkout(workout);
