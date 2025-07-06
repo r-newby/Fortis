@@ -9,6 +9,34 @@ import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 import Card from '../../components/common/Card';  // Assuming Card is default export
 import { generateWorkout } from '../../utils/generateWorkout';  // Import the generateWorkout function
+const toTitleCase = (str) => {
+  const lowerWords = ['of', 'on', 'in', 'at', 'to', 'for', 'with', 'a', 'an', 'the', 'and', 'but', 'or'];
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map((word, i) => {
+      // Case function for workout cards
+      const match = word.match(/^\((.*)\)$/);
+      if (match) {
+        const inner = match[1];
+        return `(${inner
+          .split('-')
+          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+          .join('-')})`;
+      }
+      if (word.includes('-')) {
+        return word
+          .split('-')
+          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+          .join('-');
+      }
+      if (i !== 0 && lowerWords.includes(word)) {
+        return word;
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(' ');
+};
 
 const WorkoutGenerationScreen = ({ route, navigation }) => {
   const { selectedEquipment, selectedMuscleGroup } = route.params;
@@ -102,11 +130,16 @@ const WorkoutGenerationScreen = ({ route, navigation }) => {
     }
   };
 
-  const renderWorkout = ({ item }) => (
-    <View style={styles.workoutItem}>
-      <Text>{item.name}</Text>
-      <Text>Sets: {item.sets}, Reps: {item.reps}, Weight: {item.weight} lbs</Text>
-    </View>
+    const renderWorkout = ({ item }) => (
+    <Card style={styles.exerciseCard}>
+    <Text style={styles.exerciseName}>{toTitleCase(item.name)}</Text>
+    <Text style={styles.exerciseDetails}>
+      Sets: {item.sets}   |   Reps: {item.reps}   |   Weight: {item.weight} lbs
+    </Text>
+    <Text style={styles.exerciseMeta}>
+       Target: {item.target}   •   Equipment: {item.equipment}
+    </Text>
+    </Card>
   );
 
   const handleGenerateWorkout = () => {
@@ -210,9 +243,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     marginBottom: spacing.xxl,
   },
-  workoutItem: {
-    marginBottom: spacing.md,
-  },
+  exerciseCard: {
+  backgroundColor: colors.surfaceSecondary,
+  padding: spacing.lg,
+  marginBottom: spacing.lg,
+  borderRadius: spacing.md,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+  elevation: 3,
+},
+
+exerciseName: {
+  ...typography.label,
+  fontSize: 18,
+  color: colors.textPrimary,
+  marginBottom: spacing.xs,
+},
+
+exerciseDetails: {
+  ...typography.bodySmall,
+  color: colors.textSecondary,
+  marginBottom: spacing.xs,
+},
+
+exerciseMeta: {
+  ...typography.caption,
+  color: colors.textTertiary,
+},
   buttonContainer: {
     paddingHorizontal: spacing.xl,
   },
