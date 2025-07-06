@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  SafeAreaView, 
+  ScrollView, 
+  TouchableOpacity, 
+  Alert 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../../components/common/Card';
@@ -108,8 +108,8 @@ const MuscleGroupSelectionScreen = ({ navigation, route }) => {
     navigation.navigate('WorkoutGenerator', {
       selectedEquipment,
       selectedMuscleGroup,
-      fitnessLevel: userProfile.fitnessLevel,
-      goal: userProfile.goal,
+      fitnessLevel: userProfile.fitnessLevel || 'intermediate',
+      goal: userProfile.goal || 'general',
     });
   };
 
@@ -122,10 +122,7 @@ const MuscleGroupSelectionScreen = ({ navigation, route }) => {
         onPress={() => setSelectedMuscleGroup(group.id)}
         activeOpacity={0.7}
       >
-        <Card style={[
-          styles.card,
-          isSelected && styles.cardSelected,
-        ]}>
+        <Card style={[styles.card, isSelected && styles.cardSelected]}>
           {isSelected && (
             <LinearGradient
               colors={[group.color, `${group.color}50`]}
@@ -135,19 +132,14 @@ const MuscleGroupSelectionScreen = ({ navigation, route }) => {
             />
           )}
           <View style={styles.cardContent}>
-            <View style={[
-              styles.iconContainer,
-              { backgroundColor: `${group.color}20` }
-            ]}>
+            <View style={[styles.iconContainer, { backgroundColor: `${group.color}20` }]}>
               <Text style={styles.muscleIcon}>{group.icon}</Text>
             </View>
             <View style={styles.textContainer}>
               <Text style={styles.muscleName}>{group.name}</Text>
               <Text style={styles.muscleDescription}>{group.description}</Text>
             </View>
-            {isSelected && (
-              <Ionicons name="checkmark-circle" size={24} color={group.color} />
-            )}
+            {isSelected && <Ionicons name="checkmark-circle" size={24} color={group.color} />}
           </View>
         </Card>
       </TouchableOpacity>
@@ -199,15 +191,14 @@ const MuscleGroupSelectionScreen = ({ navigation, route }) => {
             </Text>
             <View style={styles.infoList}>
               <Text style={styles.infoItem}>
-                • {userProfile?.fitnessLevel?.charAt(0).toUpperCase() + 
-                   userProfile?.fitnessLevel?.slice(1)} fitness level
+                • {userProfile?.fitnessLevel || 'Intermediate'} fitness level
               </Text>
               <Text style={styles.infoItem}>
                 • {userProfile?.goal?.charAt(0).toUpperCase() + 
-                   userProfile?.goal?.slice(1)} training goal
+                   userProfile?.goal?.slice(1) || 'General'} training goal
               </Text>
               <Text style={styles.infoItem}>
-                • Available equipment
+                • {selectedEquipment.length} available equipment
               </Text>
             </View>
           </Card>
@@ -219,11 +210,7 @@ const MuscleGroupSelectionScreen = ({ navigation, route }) => {
             title="Generate Workout"
             onPress={handleGenerateWorkout}
             disabled={!selectedMuscleGroup}
-            gradientColors={
-              selectedMuscleGroup 
-                ? [colors.primary, colors.secondary]
-                : [colors.surface, colors.surface]
-            }
+            gradientColors={selectedMuscleGroup ? [colors.primary, colors.secondary] : [colors.surface, colors.surface]}
           />
         </View>
       </ScrollView>

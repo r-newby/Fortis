@@ -49,7 +49,7 @@ const WorkoutStackNavigator = () => {
         component={EquipmentSelectionScreen}
         options={{
           animation: 'slide_from_bottom',
-          presentation: 'modal',
+        
         }}
       />
 

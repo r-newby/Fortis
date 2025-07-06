@@ -35,11 +35,13 @@ const WorkoutGenerationScreen = ({ route, navigation }) => {
     try {
       console.log('Fetching exercises...');  // Log to check if the function is triggered
 
-      // Fetch the first 50 exercises from Supabase
+      // Fetch more exercises from Supabase to include bodyweight exercises
+      // Fetch exercises that match our equipment
       const { data, error } = await supabase
         .from('exercises')
         .select('*')
-        .range(0, 49);  // Fetch first 50 exercises
+        .in('equipment', ['body weight', 'barbell', 'dumbbell', 'cable', 'machine'])
+        .limit(500);
 
       if (error) {
         throw new Error('Error fetching exercises: ' + error.message);
@@ -84,7 +86,7 @@ const WorkoutGenerationScreen = ({ route, navigation }) => {
     const workout = generateWorkout({
       allExercises,
       equipment: selectedEquipment,
-      muscleGroup: muscleGroupTarget,  // Now use the target property from the selected muscle group
+      muscleGroup: selectedMuscleGroup,  // Pass the string directly
       fitnessLevel,
       goal,
     });

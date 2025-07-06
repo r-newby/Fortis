@@ -232,10 +232,6 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
           ))}
         </View>
-
-     
-
-      
      
 
         {/* Footer */}

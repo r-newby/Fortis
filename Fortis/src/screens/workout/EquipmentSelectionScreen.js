@@ -98,7 +98,6 @@ const EquipmentSelectionScreen = ({ navigation, route }) => {
       Alert.alert('Selection Required', 'Please select at least one equipment type.');
       return;
     }
-
     // Navigate to muscle group selection
     navigation.navigate('MuscleGroupSelection', {
       selectedEquipment,
