@@ -13,10 +13,22 @@ import GradientButton from '../../components/common/GradientButton';
 import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
+import { useEffect } from 'react';
+import { useApp } from '../../context/AppContext';
 
 const { width, height } = Dimensions.get('window');
 
 const WelcomeScreen = ({ navigation }) => {
+  const { userProfile } = useApp();
+
+  useEffect(() => {
+    if (userProfile?.username) {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Main' }],
+      });
+    }
+  }, [userProfile]);
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
@@ -65,7 +77,7 @@ const WelcomeScreen = ({ navigation }) => {
               <Text style={styles.loginText}>Already have an account? </Text>
               <Text 
                 style={styles.loginLink}
-                onPress={() => navigation.navigate('Username')}
+                onPress={() => navigation.navigate('Login')}
               >
                 Sign In
               </Text>

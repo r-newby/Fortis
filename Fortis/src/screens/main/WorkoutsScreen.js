@@ -15,13 +15,19 @@ import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 import { useApp } from '../../context/AppContext';
+import { generateWorkout } from '../../utils/generateWorkout';
 
 const WorkoutsScreen = ({ navigation }) => {
   const { userProfile, workouts } = useApp();
 
-  const startNewWorkout = () => {
-    navigation.navigate('EquipmentSelection');
-  };
+  const startCustomWorkout = () => {
+  navigation.navigate('ExerciseLogging');
+};
+
+  const startGenerateWorkout = () => {
+  navigation.navigate('EquipmentSelection');
+};
+
 
   const quickStartOptions = [
     {
@@ -74,10 +80,19 @@ const WorkoutsScreen = ({ navigation }) => {
         {/* Start Workout Button */}
         <View style={styles.buttonContainer}>
           <GradientButton
-            title="Start Custom Workout"
-            onPress={startNewWorkout}
-          />
-        </View>
+  title="Start Custom Workout"
+  onPress={startCustomWorkout}
+/>
+</View>
+
+ {/* Generatee Workout Button */}
+        <View style={styles.buttonContainer}>
+          <GradientButton
+  title="Generate Workout"
+  onPress={startGenerateWorkout}
+/>
+
+      </View>
 
         {/* Quick Start Options */}
         <View style={styles.section}>
@@ -145,7 +160,7 @@ const WorkoutsScreen = ({ navigation }) => {
 
         {/* Suggested Workout */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Suggested for You</Text>
+          <Text style={styles.sectionTitle}>Auto-Generated Workouts</Text>
           <Card style={styles.suggestedCard}>
             <View style={styles.suggestedContent}>
               <View style={styles.suggestedIcon}>
@@ -160,7 +175,7 @@ const WorkoutsScreen = ({ navigation }) => {
             </View>
             <TouchableOpacity
               style={styles.suggestedButton}
-              onPress={startNewWorkout}
+              onPress={startCustomWorkout}
             >
               <Text style={styles.suggestedButtonText}>Try Now</Text>
               <Ionicons name="arrow-forward" size={16} color={colors.primary} />

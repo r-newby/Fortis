@@ -15,7 +15,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
-import { useApp } from '../../context/AppContext';
 
 const fitnessGoals = [
   {
@@ -45,45 +44,35 @@ const OnboardingGoal = ({ navigation, route }) => {
   const [selectedGoal, setSelectedGoal] = useState('');
   const [loading, setLoading] = useState(false);
   const { username, fitnessLevel } = route.params;
-  const { updateUserProfile } = useApp();
 
-  const handleComplete = async () => {
+  const handleComplete = () => {
     if (!selectedGoal) return;
-    
-    setLoading(true);
-    try {
-      // Create user profile
-      const userProfile = {
-        username,
-        fitnessLevel,
-        goal: selectedGoal,
-        onboardingCompleted: true,
-        createdAt: new Date().toISOString(),
-      };
-      
-      // Save to AsyncStorage via context
-      const success = await updateUserProfile(userProfile);
-      
-      if (success) {
-        // Navigate to main app
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Main' }],
-        });
-      } else {
-        Alert.alert('Error', 'Failed to save profile. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error completing onboarding:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: 'Login',
+          params: {
+            onboardingData: {
+              username,
+              fitnessLevel,
+              goal: selectedGoal,
+            },
+          },
+        },
+      ],
+    });
+
+    Alert.alert(
+      'Verify Your Email',
+      'Please check your inbox and confirm your email before logging in.'
+    );
   };
 
   const GoalCard = ({ goal }) => {
     const isSelected = selectedGoal === goal.id;
-    
+
     return (
       <TouchableOpacity
         onPress={() => setSelectedGoal(goal.id)}
@@ -119,11 +108,7 @@ const OnboardingGoal = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -131,8 +116,7 @@ const OnboardingGoal = ({ navigation, route }) => {
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          
-          {/* Progress Indicator */}
+
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: '100%' }]} />
@@ -141,14 +125,12 @@ const OnboardingGoal = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Content */}
         <View style={styles.content}>
           <Text style={styles.title}>What's Your Goal?</Text>
           <Text style={styles.subtitle}>
             We'll tailor your workouts to help you achieve it
           </Text>
 
-          {/* Goal Cards */}
           <View style={styles.cardsContainer}>
             {fitnessGoals.map((goal) => (
               <GoalCard key={goal.id} goal={goal} />
@@ -156,7 +138,6 @@ const OnboardingGoal = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Button */}
         <View style={styles.buttonContainer}>
           <GradientButton
             title="Complete Setup"

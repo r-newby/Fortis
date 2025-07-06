@@ -18,17 +18,29 @@ export const WorkoutProvider = ({ children }) => {
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('');
   const [workoutExercises, setWorkoutExercises] = useState([]);
   const [workoutStartTime, setWorkoutStartTime] = useState(null);
+  const [isCustomWorkout, setIsCustomWorkout] = useState(false);
 
-  const startNewWorkout = (equipment, muscleGroup, fitnessLevel, goal) => {
-    const exercises = generateWorkout(equipment, muscleGroup, fitnessLevel, goal);
-    
+  const startNewWorkout = ({
+    equipment = [],
+    muscleGroup = '',
+    fitnessLevel,
+    goal,
+    isCustom = false,
+  }) => {
+    setIsCustomWorkout(isCustom);
     setSelectedEquipment(equipment);
     setSelectedMuscleGroup(muscleGroup);
-    setWorkoutExercises(exercises);
     setWorkoutStartTime(new Date());
-    
-    // Initialize current workout structure
+
+    let exercises = [];
+
+    if (!isCustom) {
+      exercises = generateWorkout(equipment, muscleGroup, fitnessLevel, goal);
+      setWorkoutExercises(exercises);
+    }
+
     const workout = {
+      isCustom,
       equipment,
       muscleGroup,
       exercises: exercises.map(ex => ({
@@ -39,7 +51,7 @@ export const WorkoutProvider = ({ children }) => {
         completedSets: [],
       })),
     };
-    
+
     setCurrentWorkout(workout);
     return workout;
   };
@@ -86,6 +98,7 @@ export const WorkoutProvider = ({ children }) => {
     setSelectedMuscleGroup('');
     setWorkoutExercises([]);
     setWorkoutStartTime(null);
+    setIsCustomWorkout(false);
 
     return completedWorkout;
   };
@@ -96,6 +109,7 @@ export const WorkoutProvider = ({ children }) => {
     selectedMuscleGroup,
     workoutExercises,
     workoutStartTime,
+    isCustomWorkout,
     startNewWorkout,
     addSet,
     completeWorkout,

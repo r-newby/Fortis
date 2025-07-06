@@ -1,4 +1,3 @@
-// src/screens/workout/MuscleGroupSelectionScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -26,6 +25,7 @@ const muscleGroups = [
     icon: '🎯',
     description: 'Pectorals, front delts',
     color: colors.primary,
+    target: 'Pectorals',  // ExerciseDB body part
   },
   {
     id: 'back',
@@ -33,6 +33,7 @@ const muscleGroups = [
     icon: '🔙',
     description: 'Lats, rhomboids, traps',
     color: colors.secondary,
+    target: 'Back',  // ExerciseDB body part
   },
   {
     id: 'shoulders',
@@ -40,6 +41,7 @@ const muscleGroups = [
     icon: '🎪',
     description: 'Deltoids, rotator cuff',
     color: colors.accent,
+    target: 'Shoulders',  // ExerciseDB body part
   },
   {
     id: 'arms',
@@ -47,6 +49,7 @@ const muscleGroups = [
     icon: '💪',
     description: 'Biceps, triceps',
     color: colors.info,
+    target: 'Biceps, Triceps',  // ExerciseDB body part
   },
   {
     id: 'legs',
@@ -54,6 +57,7 @@ const muscleGroups = [
     icon: '🦵',
     description: 'Quads, hamstrings, glutes',
     color: colors.premium,
+    target: 'Legs',  // ExerciseDB body part
   },
   {
     id: 'core',
@@ -61,6 +65,7 @@ const muscleGroups = [
     icon: '🎯',
     description: 'Abs, obliques',
     color: colors.warning,
+    target: 'Abs',  // ExerciseDB body part
   },
   {
     id: 'full_body',
@@ -68,6 +73,7 @@ const muscleGroups = [
     icon: '🏃',
     description: 'Multiple muscle groups',
     color: colors.success,
+    target: 'Full Body',  // ExerciseDB body part
   },
   {
     id: 'cardio',
@@ -75,6 +81,7 @@ const muscleGroups = [
     icon: '❤️',
     description: 'Heart rate training',
     color: colors.error,
+    target: 'Cardio',  // ExerciseDB body part (optional)
   },
 ];
 
@@ -98,25 +105,12 @@ const MuscleGroupSelectionScreen = ({ navigation, route }) => {
     }
 
     // Generate workout based on selections
-    const workout = startNewWorkout(
+    navigation.navigate('WorkoutGenerator', {
       selectedEquipment,
       selectedMuscleGroup,
-      userProfile.fitnessLevel,
-      userProfile.goal
-    );
-
-    if (workout && workout.exercises.length > 0) {
-      // Navigate to workout display
-      navigation.navigate('WorkoutDisplay');
-    } else {
-      Alert.alert(
-        'No Exercises Available',
-        'No exercises found for your selection. Try different equipment or muscle groups.',
-        [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]
-      );
-    }
+      fitnessLevel: userProfile.fitnessLevel,
+      goal: userProfile.goal,
+    });
   };
 
   const MuscleGroupCard = ({ group }) => {
@@ -162,10 +156,7 @@ const MuscleGroupSelectionScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity

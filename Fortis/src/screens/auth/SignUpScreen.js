@@ -15,58 +15,50 @@ export default function SignUpScreen({ navigation }) {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
 
-const handleSignUp = async () => {
-  if (!email || !password || !username) {
-    Alert.alert('Missing fields', 'Please fill out all fields.');
-    return;
-  }
+  const handleSignUp = async () => {
+    if (!email || !password || !username) {
+      Alert.alert('Missing fields', 'Please fill out all fields.');
+      return;
+    }
 
-  if (username.length < 3 || username.length > 20) {
-    Alert.alert('Invalid username', 'Username must be 3–20 characters.');
-    return;
-  }
+    if (username.length < 3 || username.length > 20) {
+      Alert.alert('Invalid username', 'Username must be 3–20 characters.');
+      return;
+    }
 
-  setLoading(true);
+    setLoading(true);
 
-  // Check if username is already taken
-  const { data: existing } = await supabase
-    .from('profiles')
-    .select('username')
-    .eq('username', username)
-    .single();
+    // Check if username is already taken
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', username)
+      .single();
 
-  if (existing) {
+    if (existing) {
+      setLoading(false);
+      Alert.alert('Username taken', 'Please choose a different username.');
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
     setLoading(false);
-    Alert.alert('Username taken', 'Please choose a different username.');
-    return;
-  }
 
-  // Sign up user
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      // optional: send the username as metadata
-      data: { username },
-    },
-  });
+    if (error) {
+      Alert.alert('Sign Up Failed', error.message);
+      return;
+    }
 
-  if (error) {
-    setLoading(false);
-    Alert.alert('Sign Up Failed', error.message);
-    return;
-  }
-
-  // Supabase doesn't return user.id if email confirmation is required
-  // So we cannot update the profile right away — we'll do that after login
-
-  setLoading(false);
-  Alert.alert(
-    'Check Your Email',
-    'A confirmation link has been sent to your inbox. Please confirm your account and log in.'
-  );
-  navigation.navigate('Login');
-};
+    // Go to onboarding flow and pass the username
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'FitnessLevel', params: { username } }],
+    });
+  };
 
   return (
     <View style={styles.container}>

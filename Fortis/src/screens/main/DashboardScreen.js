@@ -64,23 +64,7 @@ const DashboardScreen = ({ navigation }) => {
       setGreeting('Good evening');
     }
   };
-useEffect(() => {
-  const fetchProfile = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('id', user.id)
-      .single();
-
-    if (data) setUsername(data.username);
-  };
-
-  fetchProfile();
-}, []);
 
   const setRandomQuote = () => {
     const randomIndex = Math.floor(Math.random() * motivationalQuotes.length);

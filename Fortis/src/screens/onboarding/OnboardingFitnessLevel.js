@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
+import { useApp } from '../../context/AppContext';
 
 const fitnessLevels = [
   {
@@ -42,12 +43,21 @@ const fitnessLevels = [
 
 const OnboardingFitnessLevel = ({ navigation, route }) => {
   const [selectedLevel, setSelectedLevel] = useState('');
-  const { username } = route.params;
+  const { username, authUserId } = route.params;
 
-  const handleContinue = () => {
-    if (!selectedLevel) return;
-    navigation.navigate('Goal', { username, fitnessLevel: selectedLevel });
-  };
+
+  
+
+const handleContinue = () => {
+  if (!selectedLevel) return;
+  navigation.navigate('Goal', {
+    authUserId,
+    username,
+    fitnessLevel: selectedLevel,
+  });
+};
+
+
 
   const FitnessLevelCard = ({ level }) => {
     const isSelected = selectedLevel === level.id;

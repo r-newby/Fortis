@@ -19,12 +19,15 @@ import EquipmentSelectionScreen from '../screens/workout/EquipmentSelectionScree
 import MuscleGroupSelectionScreen from '../screens/workout/MuscleGroupSelectionScreen';
 import WorkoutDisplayScreen from '../screens/workout/WorkoutDisplayScreen';
 import ExerciseLoggingScreen from '../screens/workout/ExerciseLoggingScreen';
+import WorkoutSummaryScreen from '../screens/workout/WorkoutSummaryScreen';
+import WorkoutGenerationScreen from '../screens/workout/WorkoutGenerationScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 // Workout Stack Navigator with animations
 const WorkoutStackNavigator = () => {
+  console.log('Rendering MainTabNavigator');
   return (
     <Stack.Navigator
       screenOptions={{
@@ -44,6 +47,15 @@ const WorkoutStackNavigator = () => {
       <Stack.Screen 
         name="EquipmentSelection" 
         component={EquipmentSelectionScreen}
+        options={{
+          animation: 'slide_from_bottom',
+          presentation: 'modal',
+        }}
+      />
+
+       <Stack.Screen 
+        name="WorkoutGenerator" 
+        component={WorkoutGenerationScreen}
         options={{
           animation: 'slide_from_bottom',
           presentation: 'modal',
@@ -71,6 +83,13 @@ const WorkoutStackNavigator = () => {
           animation: 'slide_from_bottom',
         }}
       />
+      
+      
+      <Stack.Screen
+       name="WorkoutSummary"
+       component={WorkoutSummaryScreen}
+       options={{ headerShown: false }}
+       />
     </Stack.Navigator>
   );
 };
@@ -187,15 +206,7 @@ const MainTabNavigator = () => {
           ),
         }}
       />
-      <Tab.Screen
-        name="Social"
-        component={SocialScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabBarIcon name="people" focused={focused} label="Social" />
-          ),
-        }}
-      />
+     
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}

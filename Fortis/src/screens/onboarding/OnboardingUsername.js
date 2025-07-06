@@ -15,34 +15,49 @@ import GradientButton from '../../components/common/GradientButton';
 import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
+import { useApp } from '../../context/AppContext';
 
 const OnboardingUsername = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
 
-  const handleContinue = () => {
-    const trimmedUsername = username.trim();
-    
-    if (trimmedUsername.length < 3) {
-      setError('Username must be at least 3 characters');
-      return;
-    }
-    
-    if (trimmedUsername.length > 20) {
-      setError('Username must be less than 20 characters');
-      return;
-    }
-    
-    // Check for valid characters (alphanumeric and underscore)
-    const validUsername = /^[a-zA-Z0-9_]+$/.test(trimmedUsername);
-    if (!validUsername) {
-      setError('Username can only contain letters, numbers, and underscores');
-      return;
-    }
+const { updateUserProfile } = useApp();
+const [loading, setLoading] = useState(false);
 
-    setError('');
+const handleContinue = async () => {
+  const trimmedUsername = username.trim();
+
+  if (trimmedUsername.length < 3) {
+    setError('Username must be at least 3 characters');
+    return;
+  }
+
+  if (trimmedUsername.length > 20) {
+    setError('Username must be less than 20 characters');
+    return;
+  }
+
+  const validUsername = /^[a-zA-Z0-9_]+$/.test(trimmedUsername);
+  if (!validUsername) {
+    setError('Username can only contain letters, numbers, and underscores');
+    return;
+  }
+
+  setError('');
+  setLoading(true);
+
+  const success = await updateUserProfile({ username: trimmedUsername });
+
+  setLoading(false);
+
+  if (success) {
     navigation.navigate('FitnessLevel', { username: trimmedUsername });
-  };
+  } else {
+    setError('Failed to save username. Try again.');
+  }
+};
+
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -101,10 +116,11 @@ const OnboardingUsername = ({ navigation }) => {
           {/* Button */}
           <View style={styles.buttonContainer}>
             <GradientButton
-              title="Continue"
-              onPress={handleContinue}
-              disabled={!username.trim()}
-            />
+  title={loading ? 'Saving...' : 'Continue'}
+  onPress={handleContinue}
+  disabled={!username.trim() || loading}
+/>
+
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

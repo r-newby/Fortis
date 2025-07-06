@@ -11,7 +11,7 @@ import {
 import { useApp } from '../../context/AppContext';
 
 export default function LoginScreen({ navigation }) {
-  const { reloadData, userProfile } = useApp();
+  const { reloadData } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,12 +24,10 @@ export default function LoginScreen({ navigation }) {
 
     setLoading(true);
 
-    console.log('Login attempt with:', { email, password });
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    console.log('Supabase response:', { data, error });
 
     setLoading(false);
 
@@ -38,21 +36,51 @@ export default function LoginScreen({ navigation }) {
       return;
     }
 
-    // ✅ Load profile and other data from Supabase
+    const onboardingData = navigation.getState()?.routes?.[0]?.params?.onboardingData;
+
+    if (onboardingData) {
+      const { username, fitnessLevel, goal } = onboardingData;
+
+      try {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError || !userData?.user?.id) throw userError || new Error('No user ID');
+
+        const userId = userData.user.id;
+
+        const { data: profile, error: fetchError } = await supabase
+          .from('profiles')
+          .select('username, fitness_level, goal')
+          .eq('id', userId)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        const needsUpdate =
+          !profile?.username || !profile?.fitness_level || !profile?.goal;
+
+        if (needsUpdate) {
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              username,
+              fitness_level: fitnessLevel,
+              goal,
+            })
+            .eq('id', userId);
+
+          if (updateError) throw updateError;
+        }
+      } catch (err) {
+        console.error('Error updating onboarding data:', err.message);
+      }
+    }
+
     await reloadData();
 
-    // ✅ Navigate based on whether username is set
-    if (!userProfile?.username) {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Username' }],
-      });
-    } else {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Dashboard' }],
-      });
-    }
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Main' }],
+    });
   };
 
   return (
