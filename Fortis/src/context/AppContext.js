@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { storage } from '../utils/asyncStorage';
+import storage from '../utils/asyncStorage';
 import { supabase } from '../supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AppContext = createContext();
 
@@ -18,6 +19,7 @@ export const AppProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [workouts, setWorkouts] = useState([]);
   const [personalRecords, setPersonalRecords] = useState({});
+  const [isOnboarded, setIsOnboarded] = useState(false);
 
   useEffect(() => {
     loadAppData();
@@ -25,10 +27,14 @@ export const AppProvider = ({ children }) => {
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('Auth state changed:', _event);
       setUser(session?.user || null);
+
       if (session?.user) {
-        loadAppData(); // Refresh profile if user logs in
+        loadAppData();
       } else {
-        setUserProfile(null); // Clear profile on logout
+        setUserProfile(null);
+        setIsOnboarded(false);
+        setWorkouts([]);
+        setPersonalRecords({});
       }
     });
 
@@ -64,15 +70,22 @@ export const AppProvider = ({ children }) => {
       if (profileError) {
         console.error('Error fetching profile:', profileError.message);
       } else {
-        setUserProfile(profile);
+        const normalizedProfile = {
+          ...profile,
+          fitnessLevel: profile.fitness_level,
+          goal: profile.goal,
+        };
+        setUserProfile(normalizedProfile);
+        if (profile?.username) {
+          setIsOnboarded(true);
+        }
       }
 
-      const [workoutData, records] = await Promise.all([
-        storage.getWorkouts(),
-        storage.getPersonalRecords(),
-      ]);
+      const key = `workouts_${authUser.id}`;
+      const raw = await AsyncStorage.getItem(key);
+      setWorkouts(raw ? JSON.parse(raw) : []);
 
-      setWorkouts(workoutData);
+      const records = await storage.getPersonalRecords();
       setPersonalRecords(records);
     } catch (error) {
       console.error('Error loading app data:', error);
@@ -99,11 +112,18 @@ export const AppProvider = ({ children }) => {
   };
 
   const saveWorkout = async (workout) => {
-    const success = await storage.saveWorkout(workout);
-    if (success) {
-      await loadAppData(); // Reload to get updated data
+    try {
+      const key = `workouts_${user?.id}`;
+      const existing = await AsyncStorage.getItem(key);
+      const workoutsArray = existing ? JSON.parse(existing) : [];
+      const updatedWorkouts = [...workoutsArray, workout];
+      await AsyncStorage.setItem(key, JSON.stringify(updatedWorkouts));
+      setWorkouts(updatedWorkouts);
+      return true;
+    } catch (error) {
+      console.error('Failed to save workout:', error);
+      return false;
     }
-    return success;
   };
 
   const updatePersonalRecord = async (exerciseId, record) => {
@@ -121,21 +141,29 @@ export const AppProvider = ({ children }) => {
       setUserProfile(null);
       setWorkouts([]);
       setPersonalRecords({});
+      setIsOnboarded(false);
     }
     return success;
+  };
+
+  const completeOnboarding = () => {
+    setIsOnboarded(true);
   };
 
   const value = {
     user,
     userProfile,
     workouts,
+    setWorkouts,
     personalRecords,
     isLoading,
+    isOnboarded,
     updateUserProfile,
     saveWorkout,
     updatePersonalRecord,
     clearAllData,
     reloadData: loadAppData,
+    completeOnboarding,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

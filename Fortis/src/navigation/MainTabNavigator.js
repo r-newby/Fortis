@@ -58,7 +58,7 @@ const WorkoutStackNavigator = () => {
         component={WorkoutGenerationScreen}
         options={{
           animation: 'slide_from_bottom',
-          presentation: 'modal',
+          
         }}
       />
       <Stack.Screen 

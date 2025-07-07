@@ -16,10 +16,27 @@ import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 import { useApp } from '../../context/AppContext';
 import { generateWorkout } from '../../utils/generateWorkout';
+import { useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const WorkoutsScreen = ({ navigation }) => {
   const { userProfile, workouts } = useApp();
+useEffect(() => {
+    const debugStorage = async () => {
+      try {
+        const keys = await AsyncStorage.getAllKeys();
+        console.log('AsyncStorage keys:', keys);
 
+        const userKey = `workouts_${userProfile?.id}`;
+        const data = await AsyncStorage.getItem(userKey);
+        console.log(`Workouts for ${userKey}:`, JSON.parse(data));
+      } catch (error) {
+        console.error('Error reading AsyncStorage:', error);
+      }
+    };
+
+    debugStorage();
+  }, [userProfile]);
   const startCustomWorkout = () => {
   navigation.navigate('ExerciseLogging');
 };
@@ -133,10 +150,14 @@ const WorkoutsScreen = ({ navigation }) => {
               <Card key={workout.id} style={styles.recentWorkoutCard}>
                 <View style={styles.workoutHeader}>
                   <View>
-                    <Text style={styles.workoutTitle}>
-                      {workout.muscleGroup.charAt(0).toUpperCase() + 
-                       workout.muscleGroup.slice(1).replace('_', ' ')} Workout
-                    </Text>
+                   <Text style={styles.workoutTitle}>
+  {workout.muscle_group
+    ? workout.muscle_group.charAt(0).toUpperCase() +
+      workout.muscle_group.slice(1).replace('_', ' ') + ' Workout'
+    : 'Unnamed Workout'}
+</Text>
+
+
                     <Text style={styles.workoutDate}>
                       {new Date(workout.date).toLocaleDateString()}
                     </Text>

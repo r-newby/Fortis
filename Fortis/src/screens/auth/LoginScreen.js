@@ -11,7 +11,7 @@ import {
 import { useApp } from '../../context/AppContext';
 
 export default function LoginScreen({ navigation }) {
-  const { reloadData } = useApp();
+  const { reloadData, completeOnboarding } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -76,11 +76,7 @@ export default function LoginScreen({ navigation }) {
     }
 
     await reloadData();
-
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Main' }],
-    });
+    completeOnboarding(); // Triggers switch to MainTabNavigator
   };
 
   return (
@@ -137,11 +133,31 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0D0D0D', padding: 24, justifyContent: 'center' },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 6 },
-  subtitle: { fontSize: 16, color: '#AAAAAA', marginBottom: 32 },
-  inputGroup: { marginBottom: 24 },
-  label: { fontSize: 14, color: '#FFFFFF', marginBottom: 8 },
+  container: {
+    flex: 1,
+    backgroundColor: '#0D0D0D',
+    padding: 24,
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#AAAAAA',
+    marginBottom: 32,
+  },
+  inputGroup: {
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
   input: {
     backgroundColor: '#1A1A1A',
     color: '#FFFFFF',
@@ -156,12 +172,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 16 },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
   footerText: {
     color: '#AAAAAA',
     textAlign: 'center',
     marginTop: 24,
   },
-  linkText: { color: '#FF4C5E' },
+  linkText: {
+    color: '#FF4C5E',
+  },
 });

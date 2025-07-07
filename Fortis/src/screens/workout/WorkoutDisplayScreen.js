@@ -7,9 +7,9 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../../components/common/Card';
 import GradientButton from '../../components/common/GradientButton';
@@ -17,14 +17,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
-import { useWorkout } from '../../context/WorkoutContext';
+import { useApp } from '../../context/AppContext';
+import { supabase } from '../../supabase';
 
-const WorkoutDisplayScreen = ({ navigation }) => {
-  const { workoutExercises, selectedMuscleGroup, currentWorkout } = useWorkout();
+const WorkoutDisplayScreen = ({ navigation, route }) => {
+  const { workout, muscleGroup } = route.params || {};
   const [expandedExercise, setExpandedExercise] = useState(null);
+  const [workoutExercises, setWorkoutExercises] = useState(workout || []);
+  const [intensityRating, setIntensityRating] = useState(null);
+  const { userProfile, setWorkouts } = useApp();
 
   useEffect(() => {
-    // If no workout exercises, go back
+    
     if (!workoutExercises || workoutExercises.length === 0) {
       Alert.alert(
         'No Workout Generated',
@@ -32,13 +36,90 @@ const WorkoutDisplayScreen = ({ navigation }) => {
         [{ text: 'OK', onPress: () => navigation.navigate('WorkoutsList') }]
       );
     }
+
+
   }, [workoutExercises]);
 
-  const handleStartWorkout = () => {
-    if (workoutExercises.length > 0) {
-      navigation.navigate('ExerciseLogging', {
-        exerciseIndex: 0,
-      });
+  
+
+  
+
+  
+
+  const saveWorkoutToStorage = async (userId, newWorkout) => {
+    try {
+      const key = `workouts_${userId}`;
+      const existing = await AsyncStorage.getItem(key);
+      const existingWorkouts = existing ? JSON.parse(existing) : [];
+      const updatedWorkouts = [newWorkout, ...existingWorkouts];
+      await AsyncStorage.setItem(key, JSON.stringify(updatedWorkouts));
+    } catch (error) {
+      console.error('Failed to save workout to storage:', error);
+    }
+  };
+
+  const handleLogWorkout = async () => {
+    if (!userProfile) {
+      Alert.alert('User not found');
+      return;
+    }
+
+    if (!intensityRating) {
+      Alert.alert('Please rate your workout intensity before logging.');
+      return;
+    }
+
+    try {
+      const { data: workoutData, error: workoutError } = await supabase
+        .from('workouts')
+        .insert({
+          user_id: userProfile.id,
+          date: new Date().toISOString(),
+          intensity: intensityRating,
+          muscle_group: muscleGroup,
+        })
+        .select()
+        .single();
+
+      if (workoutError) throw workoutError;
+
+      const workoutId = workoutData.id;
+
+      const exerciseInserts = workoutExercises.map((ex) => ({
+        workout_id: workoutId,
+        exercise_id: ex.id,
+        sets: ex.sets,
+        reps: ex.reps,
+        weight: ex.weight || null,
+      }));
+
+      const { error: exercisesError } = await supabase
+        .from('workout_exercises')
+        .insert(exerciseInserts);
+
+      if (exercisesError) throw exercisesError;
+
+      setWorkouts((prev) => [...prev, workoutData]);
+      await saveWorkoutToStorage(userProfile.id, {
+  ...workoutData,
+  muscle_group: muscleGroup,
+  totalVolume: workoutExercises.reduce((sum, ex) => {
+    return sum + (ex.sets * ex.reps * (ex.weight || 0));
+  }, 0),
+});
+
+
+      Alert.alert('Workout Logged', 'Your workout has been saved.', [
+        {
+          text: 'OK',
+          onPress: () => {
+            navigation.getParent().navigate('Dashboard');
+          },
+        },
+      ]);
+    } catch (error) {
+      console.error('Error logging workout:', error);
+      Alert.alert('Error', 'Could not save your workout.');
     }
   };
 
@@ -98,35 +179,34 @@ const WorkoutDisplayScreen = ({ navigation }) => {
 
           {isExpanded && (
             <View style={styles.exerciseDetails}>
-              {/* Exercise Image Placeholder */}
               <View style={styles.exerciseImage}>
                 <Ionicons name="image" size={48} color={colors.textTertiary} />
               </View>
-
-              {/* Instructions */}
               <Text style={styles.instructionsTitle}>Instructions</Text>
               <Text style={styles.instructionsText}>{exercise.instructions}</Text>
-
-              {/* Target Muscles */}
               <Text style={styles.musclesTitle}>Target Muscles</Text>
               <View style={styles.musclesList}>
-                {exercise.primaryMuscles.map((muscle, idx) => (
-                  <View key={idx} style={[styles.muscleTag, styles.primaryMuscle]}>
+                {exercise.primaryMuscles?.map((muscle, idx) => (
+                  <View
+                    key={idx}
+                    style={[styles.muscleTag, styles.primaryMuscle]}
+                  >
                     <Text style={styles.muscleTagText}>
                       {muscle.charAt(0).toUpperCase() + muscle.slice(1)}
                     </Text>
                   </View>
                 ))}
-                {exercise.secondaryMuscles.map((muscle, idx) => (
-                  <View key={idx} style={[styles.muscleTag, styles.secondaryMuscle]}>
+                {exercise.secondaryMuscles?.map((muscle, idx) => (
+                  <View
+                    key={idx}
+                    style={[styles.muscleTag, styles.secondaryMuscle]}
+                  >
                     <Text style={styles.muscleTagText}>
                       {muscle.charAt(0).toUpperCase() + muscle.slice(1)}
                     </Text>
                   </View>
                 ))}
               </View>
-
-              {/* Rest Time */}
               <View style={styles.restInfo}>
                 <Ionicons name="timer-outline" size={20} color={colors.info} />
                 <Text style={styles.restText}>
@@ -142,9 +222,9 @@ const WorkoutDisplayScreen = ({ navigation }) => {
 
   const getTotalWorkoutTime = () => {
     const totalSets = workoutExercises.reduce((sum, ex) => sum + ex.sets, 0);
-    const avgSetTime = 45; // seconds per set
+    const avgSetTime = 45;
     const totalRestTime = workoutExercises.reduce(
-      (sum, ex) => sum + (ex.sets - 1) * ex.restSeconds,
+      (sum, ex) => sum + (ex.sets - 1) * (ex.restSeconds || 30),
       0
     );
     const totalSeconds = totalSets * avgSetTime + totalRestTime;
@@ -153,11 +233,7 @@ const WorkoutDisplayScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -165,68 +241,46 @@ const WorkoutDisplayScreen = ({ navigation }) => {
           >
             <Ionicons name="close" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          
           <View style={styles.headerText}>
             <Text style={styles.title}>Your Workout</Text>
             <Text style={styles.subtitle}>
-              {selectedMuscleGroup.charAt(0).toUpperCase() + 
-               selectedMuscleGroup.slice(1).replace('_', ' ')} Focus
+              {muscleGroup?.charAt(0).toUpperCase() +
+                muscleGroup?.slice(1).replace('_', ' ')}{' '}
+              Focus
             </Text>
           </View>
         </View>
 
-        {/* Workout Summary */}
-        <LinearGradient
-          colors={colors.gradientPrimary}
-          style={styles.summaryCard}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.summaryContent}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>{workoutExercises.length}</Text>
-              <Text style={styles.summaryLabel}>Exercises</Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>
-                {workoutExercises.reduce((sum, ex) => sum + ex.sets, 0)}
-              </Text>
-              <Text style={styles.summaryLabel}>Total Sets</Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>~{getTotalWorkoutTime()}</Text>
-              <Text style={styles.summaryLabel}>Minutes</Text>
-            </View>
+        <Card style={styles.intensityCard}>
+          <Text style={styles.intensityTitle}>Rate Workout Intensity (1-5)</Text>
+          <View style={styles.intensityButtons}>
+            {[1, 2, 3, 4, 5].map((value) => (
+              <TouchableOpacity
+                key={value}
+                style={[
+                  styles.intensityButton,
+                  intensityRating === value && styles.intensitySelected,
+                ]}
+                onPress={() => setIntensityRating(value)}
+              >
+                <Text
+                  style={
+                    intensityRating === value
+                      ? styles.intensityTextSelected
+                      : styles.intensityText
+                  }
+                >
+                  {value}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        </LinearGradient>
-
-        {/* Instructions */}
-        <Card style={styles.instructionCard}>
-          <View style={styles.instructionHeader}>
-            <Ionicons name="information-circle" size={20} color={colors.info} />
-            <Text style={styles.instructionTitle}>How to proceed</Text>
-          </View>
-          <Text style={styles.instructionText}>
-            Tap on any exercise to see detailed instructions. When ready, 
-            press "Start Workout" to begin logging your sets.
-          </Text>
         </Card>
 
-        {/* Exercise List */}
-        <View style={styles.exerciseList}>
-          <Text style={styles.listTitle}>Exercises</Text>
-          {workoutExercises.map((exercise, index) => (
-            <ExerciseCard key={exercise.id} exercise={exercise} index={index} />
-          ))}
-        </View>
-
-        {/* Start Button */}
         <View style={styles.buttonContainer}>
           <GradientButton
-            title="Start Workout"
-            onPress={handleStartWorkout}
+            title="Log Workout"
+            onPress={handleLogWorkout}
             gradientColors={colors.gradientPrimary}
           />
           <TouchableOpacity
@@ -240,7 +294,6 @@ const WorkoutDisplayScreen = ({ navigation }) => {
     </SafeAreaView>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -276,178 +329,43 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.textSecondary,
   },
-  summaryCard: {
+  intensityCard: {
     marginHorizontal: spacing.xl,
     marginBottom: spacing.xl,
-    borderRadius: 16,
-    padding: spacing.xl,
-  },
-  summaryContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  summaryItem: {
-    alignItems: 'center',
-  },
-  summaryValue: {
-    ...typography.h1,
-    color: '#FFFFFF',
-    marginBottom: spacing.xs,
-  },
-  summaryLabel: {
-    ...typography.caption,
-    color: '#FFFFFF',
-    opacity: 0.9,
-    textTransform: 'uppercase',
-  },
-  summaryDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#FFFFFF',
-    opacity: 0.3,
-  },
-  instructionCard: {
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.xxl,
+    padding: spacing.lg,
     backgroundColor: colors.surfaceSecondary,
+    borderRadius: 12,
   },
-  instructionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  instructionTitle: {
+  intensityTitle: {
     ...typography.label,
     color: colors.textPrimary,
-    marginLeft: spacing.sm,
-  },
-  instructionText: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
-  exerciseList: {
-    paddingHorizontal: spacing.xl,
-    marginBottom: spacing.xxl,
-  },
-  listTitle: {
-    ...typography.h2,
-    color: colors.textPrimary,
-    marginBottom: spacing.lg,
-  },
-  exerciseCard: {
     marginBottom: spacing.md,
   },
-  exerciseHeader: {
+  intensityButtons: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  exerciseNumber: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  exerciseNumberText: {
-    ...typography.bodyLarge,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  exerciseInfo: {
-    flex: 1,
-  },
-  exerciseName: {
-    ...typography.h3,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  exerciseTags: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  tag: {
-    backgroundColor: colors.surfaceSecondary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 6,
-  },
-  tagText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textTransform: 'capitalize',
-  },
-  exerciseDetails: {
-    marginTop: spacing.lg,
-    paddingTop: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  exerciseImage: {
-    height: 150,
-    backgroundColor: colors.surfaceSecondary,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  instructionsTitle: {
-    ...typography.label,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-    textTransform: 'uppercase',
-  },
-  instructionsText: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: spacing.lg,
-  },
-  musclesTitle: {
-    ...typography.label,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-    textTransform: 'uppercase',
-  },
-  musclesList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  muscleTag: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 12,
-  },
-  primaryMuscle: {
-    backgroundColor: `${colors.primary}20`,
-  },
-  secondaryMuscle: {
-    backgroundColor: `${colors.secondary}20`,
-  },
-  muscleTagText: {
-    ...typography.caption,
-    color: colors.textPrimary,
-    fontWeight: '500',
-  },
-  restInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: `${colors.info}10`,
+  intensityButton: {
     padding: spacing.md,
     borderRadius: 8,
+    backgroundColor: colors.surface,
+    width: 44,
+    alignItems: 'center',
   },
-  restText: {
+  intensitySelected: {
+    backgroundColor: colors.primary,
+  },
+  intensityText: {
     ...typography.bodyMedium,
-    color: colors.info,
-    marginLeft: spacing.sm,
+    color: colors.textPrimary,
+  },
+  intensityTextSelected: {
+    ...typography.bodyMedium,
+    color: '#FFFFFF',
   },
   buttonContainer: {
     paddingHorizontal: spacing.xl,
+    marginTop: spacing.xl,
   },
   modifyButton: {
     alignItems: 'center',
@@ -459,5 +377,4 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 });
-
 export default WorkoutDisplayScreen;

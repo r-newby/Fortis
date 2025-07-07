@@ -92,6 +92,8 @@ const MuscleGroupSelectionScreen = ({ navigation, route }) => {
   const { selectedEquipment, preselectedMuscleGroup } = route.params;
 
   useEffect(() => {
+    console.log('Selected Equipment:', selectedEquipment);
+console.log('fitnessLevel:', userProfile?.fitnessLevel); 
     // If coming from quick start, pre-select the muscle group
     if (preselectedMuscleGroup) {
       setSelectedMuscleGroup(preselectedMuscleGroup);
