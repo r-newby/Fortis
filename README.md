@@ -1,5 +1,5 @@
 # Fortis
-![Fortis Logo](./assets/splash.png)
+![Fortis Logo](Fortis/assets/splash.png)
 Fortis is a mobile fitness tracking app built with React Native and Supabase. It allows users to create, log, and manage custom and auto-generated workouts based on fitness level, goals, and available equipment.
 
 ## Features
