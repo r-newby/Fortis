@@ -342,12 +342,6 @@ const DashboardScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('Progress')}
           />
           <QuickAction
-            icon="people"
-            title="Community"
-            color={colors.info}
-            onPress={() => navigation.navigate('Social')}
-          />
-          <QuickAction
             icon="calendar"
             title="Schedule"
             color={colors.success}
@@ -631,6 +625,7 @@ const styles = StyleSheet.create({
   quickActionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'center',
     paddingHorizontal: spacing.xl,
     marginBottom: spacing.xl,
     gap: spacing.md,
