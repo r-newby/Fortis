@@ -71,7 +71,7 @@ useEffect(() => {
     {
       id: 'full',
       title: 'Full Body',
-      icon: 'body',  // Changed from 'accessibility' to 'body'
+      icon: 'body',  
       color: colors.info,
       muscleGroup: 'full_body',
     },

@@ -45,6 +45,10 @@ const OnboardingGoal = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const { username, fitnessLevel } = route.params;
 
+  /* Handle completion of onboarding.
+   This function will reset the navigation stack and navigate to the Login screen
+   with the onboarding data passed as parameters */
+
   const handleComplete = () => {
     if (!selectedGoal) return;
 

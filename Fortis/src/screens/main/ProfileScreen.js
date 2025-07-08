@@ -96,14 +96,14 @@ const ProfileScreen = ({ navigation }) => {
     title: 'Username',
     icon: 'person-outline',
     value: userProfile?.username || 'User',
-    onPress: () => navigation.navigate('Username'), // or another screen
+    onPress: () => navigation.navigate('Username'), 
   },
   {
     id: 'fitness-level',
     title: 'Fitness Level',
     icon: 'barbell-outline',
     value: getFitnessLevelText(),
-    onPress: () => {}, // maybe open a modal or another screen
+    onPress: () => {},
   },
 ];
 

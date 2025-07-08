@@ -45,9 +45,7 @@ const OnboardingFitnessLevel = ({ navigation, route }) => {
   const [selectedLevel, setSelectedLevel] = useState('');
   const { username, authUserId } = route.params;
 
-
-  
-
+// After selecting a fitness level, navigate to the Goal screen
 const handleContinue = () => {
   if (!selectedLevel) return;
   navigation.navigate('Goal', {
