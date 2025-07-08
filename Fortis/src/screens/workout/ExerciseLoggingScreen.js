@@ -17,6 +17,34 @@ import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 
+const toTitleCase = (str) => {
+  const lowerWords = ['of', 'on', 'in', 'at', 'to', 'for', 'with', 'a', 'an', 'the', 'and', 'but', 'or'];
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map((word, i) => {
+      const match = word.match(/^\((.*)\)$/);
+      if (match) {
+        const inner = match[1];
+        return `(${inner
+          .split('-')
+          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+          .join('-')})`;
+      }
+      if (word.includes('-')) {
+        return word
+          .split('-')
+          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+          .join('-');
+      }
+      if (i !== 0 && lowerWords.includes(word)) {
+        return word;
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(' ');
+};
+
 const ExerciseLoggingScreen = ({ navigation }) => {
   const { user } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
@@ -98,13 +126,20 @@ const ExerciseLoggingScreen = ({ navigation }) => {
 
     selectedExercises.forEach((exercise) => {
       const logs = exerciseLogs[exercise.id] || [];
-      logs.forEach((log) => {
+      logs.forEach((log, i) => {
+        const reps = Number(log.reps);
+        const weight = Number(log.weight);
+        const sets = i + 1;
+        if (isNaN(reps) || isNaN(weight)) {
+    Alert.alert('Invalid Input', 'Please enter numeric values for reps and weight.');
+    return;
+  }
         workoutExercises.push({
           workout_id: workout.id,
           exercise_id: exercise.id,
-          reps: log.reps,
-          sets: log.sets,
-          weight: log.weight,
+          reps,
+          sets,
+          weight,
         });
       });
     });
@@ -138,9 +173,9 @@ const ExerciseLoggingScreen = ({ navigation }) => {
 
    
       <TextInput
-        style={styles.input}
+        style={styles.searchInput}
         placeholder="Search for exercises"
-        placeholderTextColor={colors.gray}
+        placeholderTextColor="#A9A9A9"
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
@@ -150,7 +185,7 @@ const ExerciseLoggingScreen = ({ navigation }) => {
           {searchResults.map((exercise) => (
             <TouchableOpacity key={exercise.id} onPress={() => handleSelectExercise(exercise)}>
               <Card style={styles.card}>
-                <Text style={styles.exerciseName}>{exercise.name}</Text>
+                <Text style={styles.exerciseName}>{toTitleCase(exercise.name)}</Text>
                 <Text style={styles.exerciseDetails}>
                   {exercise.target} | {exercise.equipment}
                 </Text>
@@ -162,21 +197,16 @@ const ExerciseLoggingScreen = ({ navigation }) => {
 
       {selectedExercises.map((exercise) => (
         <View key={exercise.id} style={styles.exerciseBlock}>
-          <Text style={styles.exerciseTitle}>{exercise.name}</Text>
+          <Text style={styles.exerciseTitle}>{toTitleCase(exercise.name)}</Text>
           {exerciseLogs[exercise.id]?.map((log, index) => (
             <View key={index} style={styles.setRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="Sets"
-                placeholderTextColor={colors.gray}
-                value={log.sets}
-                onChangeText={(value) => handleInputChange(exercise.id, index, 'sets', value)}
-                keyboardType="numeric"
-              />
+              <View style={styles.setLabel}>
+               <Text style={styles.setText}>Set {index + 1}:</Text>
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder="Reps"
-                placeholderTextColor={colors.gray}
+                placeholderTextColor="#666666"
                 value={log.reps}
                 onChangeText={(value) => handleInputChange(exercise.id, index, 'reps', value)}
                 keyboardType="numeric"
@@ -184,7 +214,7 @@ const ExerciseLoggingScreen = ({ navigation }) => {
               <TextInput
                 style={styles.input}
                 placeholder="Weight"
-                placeholderTextColor={colors.gray}
+                placeholderTextColor="#666666"
                 value={log.weight}
                 onChangeText={(value) => handleInputChange(exercise.id, index, 'weight', value)}
                 keyboardType="numeric"
@@ -197,7 +227,7 @@ const ExerciseLoggingScreen = ({ navigation }) => {
         </View>
       ))}
 
-      <GradientButton onPress={handleSubmit} title="Save Workout" />
+      <GradientButton onPress={handleSubmit} title="Save Workout" style={styles.saveButton} />
     </ScrollView>
   );
 };
@@ -206,58 +236,95 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: spacing.medium,
-    
   },
   label: {
     ...typography.h3,
     color: colors.textSecondary,
      padding: spacing.xl,
   },
-  input: {
-     backgroundColor: '#1A1A1A',
+  setLabel: {
+  justifyContent: 'center',
+  paddingHorizontal: 4,
+  },
+
+  setText: {
+  color: colors.textPrimary,
+  fontWeight: 'bold',
+  fontSize: 16,
+  marginRight: 8,
+  width: 50,
+  },
+
+  saveButton: {
+    paddingHorizontal: spacing.lg,
+    alignSelf: 'center',
+  },
+  searchInput: {
+    backgroundColor: '#1A1A1A',
     color: '#FFFFFF',
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#333333',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+},
+  input: {
+    flex: 1,
+    backgroundColor: '#1A1A1A',
+    color: '#FFFFFF',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#333333',
+    marginBottom: spacing.small,
+
   },
   resultsContainer: {
     marginBottom: spacing.large,
+    
   },
   card: {
     marginHorizontal: spacing.xl,
-    padding: spacing.xxl,
-    alignItems: 'left',
+    marginVertical: spacing.sm,
+    padding: spacing.lg,
+    alignItems: 'flex-start',
+    backgroundColor: '#1A1A1A', // optional: match your input field color
+    borderRadius: 10,
   },
   exerciseName: {
    
     ...typography.h3,
     color: colors.textPrimary,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.lg,
   },
   exerciseDetails: {
     ...typography.bodyMedium,
     color: colors.textSecondary,
   },
   exerciseBlock: {
-    marginBottom: spacing.large,
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.lg,
   },
   exerciseTitle: {
     ...typography.h2,
     color: colors.textPrimary,
-    marginHorizontal: spacing.xl,
+    marginHorizontal: spacing.lg,
     marginBottom: spacing.lg,
   },
   setRow: {
     flexDirection: 'row',
-    marginBottom: spacing.small,
+    alignItems: 'center',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.xs,
     gap: 8,
   },
  
   addSet: {
     color: colors.primary,
-    marginTop: spacing.extraSmall,
+    marginTop: spacing.sm,
     fontWeight: 'bold',
+    marginHorizontal: spacing.lg,
   },
 });
 
