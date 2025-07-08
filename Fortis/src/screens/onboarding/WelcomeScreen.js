@@ -41,15 +41,16 @@ const WelcomeScreen = ({ navigation }) => {
           {/* Logo Container */}
           <View style={styles.logoContainer}>
             <View style={styles.logo}>
-              <LinearGradient
-                colors={colors.gradientPrimary}
-                style={styles.logoGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Text style={styles.logoText}>F</Text>
-              </LinearGradient>
-            </View>
+  
+    <View style={styles.logoInner}>
+      <Image
+        source={require('../../../assets/adaptive-icon-Photoroom.png')}
+        style={styles.logoImage}
+        resizeMode="contain"
+      />
+    </View>
+
+</View>
             <Text style={styles.brandText}>FORTIS</Text>
           </View>
 
@@ -108,27 +109,30 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxxl,
   },
   logo: {
-    width: 100,
-    height: 100,
-    borderRadius: 25,
-    overflow: 'hidden',
-    marginBottom: spacing.xl,
-    elevation: 10,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-  },
-  logoGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoText: {
-    fontSize: 56,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
+  borderRadius: 40,
+  overflow: 'hidden',
+},
+
+logoGradient: {
+  width: 80,
+  height: 80,
+  borderRadius: 40,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+logoInner: {
+  width: 250,
+  height: 250,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+logoImage: {
+  width: '100%',
+  height: '100%',
+},
+
   brandText: {
     ...typography.displayLarge,
     color: colors.textPrimary,

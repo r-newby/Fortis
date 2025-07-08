@@ -131,7 +131,7 @@ const WorkoutGenerationScreen = ({ route, navigation }) => {
 const handleGenerateWorkout = () => {
   navigation.navigate('WorkoutDisplay', {
     workout: generatedWorkout,
-    muscleGroup: selectedMuscleGroup, // or whatever structure you're using
+    muscleGroup: selectedMuscleGroup, 
   });
 };
 
