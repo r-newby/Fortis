@@ -3,7 +3,7 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
   console.log('Muscle Group:', muscleGroup);
   console.log('Equipment:', equipment);
 
-  const normalizedMuscleGroup = muscleGroup ? muscleGroup.toLowerCase().trim() : '';
+  const normalizedMuscleGroup = muscleGroup && typeof muscleGroup === 'string' ? muscleGroup.toLowerCase().trim() : '';
   const normalizedMuscleGroups = Array.isArray(muscleGroup)
     ? muscleGroup.map(m => m.toLowerCase().replace(/\s+/g, '_').trim())
     : normalizedMuscleGroup ? [normalizedMuscleGroup] : [];
@@ -33,7 +33,7 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
     abs: 'abs'
   };
 
-  const normalize = str => str.toLowerCase().trim();
+  const normalize = str => str ? str.toLowerCase().trim() : '';
   const resolveBodyWeight = eq => (normalize(eq) === 'bodyweight' ? 'body weight' : normalize(eq));
 
   const workout = [];
