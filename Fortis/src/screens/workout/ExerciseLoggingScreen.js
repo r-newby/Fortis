@@ -7,25 +7,61 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  SafeAreaView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../supabase';
 import GradientButton from '../../components/common/GradientButton';
 import Card from '../../components/common/Card';
 import { useApp } from '../../context/AppContext';
+import { useWorkout } from '../../context/WorkoutContext';
 import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 
+// Utility to format exercise names in Title Case
+const toTitleCase = (str) => {
+  const lowerWords = ['of', 'on', 'in', 'at', 'to', 'for', 'with', 'a', 'an', 'the', 'and', 'but', 'or'];
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map((word, i) => {
+      const match = word.match(/^\((.*)\)$/);
+      if (match) {
+        const inner = match[1];
+        return `(${inner.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('-')})`;
+      }
+      if (word.includes('-')) {
+        return word.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('-');
+      }
+      if (i !== 0 && lowerWords.includes(word)) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    }).join(' ');
+};
+
 const ExerciseLoggingScreen = ({ navigation }) => {
-  const { user } = useApp();
+  const {
+    currentWorkout,
+    addSet,
+    completeWorkout,
+    startNewWorkout,
+    addExerciseToWorkout,
+  } = useWorkout();
+  const { user, reloadData } = useApp();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [selectedExercises, setSelectedExercises] = useState([]);
   const [exerciseLogs, setExerciseLogs] = useState({});
 
+  // If there's no active workout, start a custom one
   useEffect(() => {
-    if (searchQuery.trim().length === 0) {
+    if (!currentWorkout) {
+      startNewWorkout({ isCustom: true });
+    }
+  }, []);
+
+  // Fetch exercises from Supabase matching the search query
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
       setSearchResults([]);
       return;
     }
@@ -37,227 +73,274 @@ const ExerciseLoggingScreen = ({ navigation }) => {
         .ilike('name', `%${searchQuery}%`)
         .limit(10);
 
-      if (error) {
-        console.error('Error fetching exercises:', error);
-      } else {
-        setSearchResults(data);
-      }
+      if (error) console.error('Error fetching exercises:', error);
+      else setSearchResults(data);
     };
 
     fetchExercises();
   }, [searchQuery]);
 
+  // Adds a new exercise to the workout and clears search
   const handleSelectExercise = (exercise) => {
-    if (selectedExercises.find((ex) => ex.id === exercise.id)) return;
-
-    setSelectedExercises([...selectedExercises, exercise]);
-    setExerciseLogs({
-      ...exerciseLogs,
-      [exercise.id]: [{ reps: '', sets: '', weight: '' }],
+    addExerciseToWorkout({
+      exerciseId: exercise.id,
+      exerciseName: exercise.name,
     });
     setSearchQuery('');
-    setSearchResults([]); // hide search results after selection
+    setSearchResults([]);
   };
 
-  const handleInputChange = (exerciseId, index, field, value) => {
-    const updatedLogs = [...exerciseLogs[exerciseId]];
-    updatedLogs[index][field] = value;
-    setExerciseLogs({
-      ...exerciseLogs,
-      [exerciseId]: updatedLogs,
-    });
+  // Updates local input state and context when reps or weight changes
+  const handleInputChange = (exerciseId, setIndex, field, value) => {
+    const parsed = field === 'weight' ? parseFloat(value) : parseInt(value);
+
+    // Update local UI state
+    const logs = [...(exerciseLogs[exerciseId] || [])];
+    if (!logs[setIndex]) logs[setIndex] = { reps: '', weight: '' };
+    logs[setIndex][field] = value;
+    setExerciseLogs({ ...exerciseLogs, [exerciseId]: logs });
+
+    // Sync to global context
+    if (!isNaN(parsed)) {
+      addSet(exerciseId, { [field]: parsed }, setIndex);
+    }
   };
 
+  // Adds a new empty set row for an exercise
   const handleAddSet = (exerciseId) => {
     setExerciseLogs({
       ...exerciseLogs,
-      [exerciseId]: [...exerciseLogs[exerciseId], { reps: '', sets: '', weight: '' }],
+      [exerciseId]: [
+        ...(exerciseLogs[exerciseId] || []),
+        { reps: '', weight: '' },
+      ],
     });
   };
 
+  // Handles full workout submission: saves sets and inserts into Supabase
   const handleSubmit = async () => {
-    if (!user) {
-      Alert.alert('You must be logged in to save a workout.');
+    console.log('Submit started');
+
+    // Sync all input sets to context
+    for (const exerciseId in exerciseLogs) {
+      const logs = exerciseLogs[exerciseId];
+      logs.forEach(set => {
+        const reps = parseInt(set.reps);
+        const weight = parseFloat(set.weight);
+        if (!isNaN(reps) && !isNaN(weight)) {
+          addSet(exerciseId, { reps, weight });
+        }
+      });
+    }
+
+    console.log('Calling completeWorkout...');
+    const finished = completeWorkout();
+    console.log('Finished workout:', finished);
+
+    if (!finished) {
+      Alert.alert('Error', 'No workout to complete.');
       return;
     }
 
-    const { data: workout, error: workoutError } = await supabase
+    const { exercises, date, muscleGroup, totalVolume } = finished;
+    console.log('Inserting workout into Supabase...');
+
+    const { data: workoutInsert, error } = await supabase
       .from('workouts')
-      .insert([{ user_id: user.id, date: new Date().toISOString() }])
+      .insert({
+        user_id: user.id,
+        date,
+        muscle_group: muscleGroup,
+        total_volume: totalVolume,
+      })
       .select()
       .single();
 
-    if (workoutError) {
-      console.error('Error inserting workout:', workoutError);
-      console.log(user.id);
-      Alert.alert('Error saving workout.');
+    if (error) {
+      console.error('Insert error:', error.message);
+      Alert.alert('Error', 'Failed to save workout.');
       return;
     }
 
-    const workoutExercises = [];
+    console.log('Workout inserted:', workoutInsert);
+    const workoutId = workoutInsert.id;
 
-    selectedExercises.forEach((exercise) => {
-      const logs = exerciseLogs[exercise.id] || [];
-      logs.forEach((log) => {
-        workoutExercises.push({
-          workout_id: workout.id,
-          exercise_id: exercise.id,
-          reps: log.reps,
-          sets: log.sets,
-          weight: log.weight,
-        });
+    // Insert each exercise summary (averaged per set)
+    for (const ex of exercises) {
+      const sets = ex.completedSets.length;
+      const totalReps = ex.completedSets.reduce((sum, s) => sum + s.reps, 0);
+      const totalWeight = ex.completedSets.reduce((sum, s) => sum + s.weight, 0);
+
+      const avgReps = Math.round(totalReps / sets);
+      const avgWeight = Math.round(totalWeight / sets);
+
+      await supabase.from('workout_exercises').insert({
+        workout_id: workoutId,
+        exercise_id: ex.exerciseId,
+        sets,
+        reps: avgReps,
+        weight: avgWeight,
       });
-    });
-
-    const { error: insertError } = await supabase
-      .from('workout_exercises')
-      .insert(workoutExercises);
-
-    if (insertError) {
-      console.error('Error inserting workout exercises:', insertError);
-      Alert.alert('Error saving workout exercises.');
-    } else {
-      Alert.alert('Workout saved!');
-      setSearchQuery('');
-      setSearchResults([]);
-      setSelectedExercises([]);
-      setExerciseLogs({});
-      console.log('Navigating with workoutId:', workout.id);
-
-      navigation.navigate('WorkoutSummary', { workoutId: workout.id });
-
     }
+    console.log('Navigating to WorkoutSummary with:', finished);
+    setSearchQuery('');
+    setSearchResults([]);
+    setExerciseLogs({});
+    navigation.navigate('WorkoutSummary', { workoutId });
+    
   };
 
   return (
-    <ScrollView
-  style={styles.container}
-  keyboardShouldPersistTaps="handled"
-  contentContainerStyle={styles.contentContainer}
->
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.contentContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search for exercises"
+          placeholderTextColor="#A9A9A9"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
 
-   
-      <TextInput
-        style={styles.input}
-        placeholder="Search for exercises"
-        placeholderTextColor={colors.gray}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
+        {searchResults.length > 0 && (
+          <View style={styles.resultsContainer}>
+            {searchResults.map((exercise) => (
+              <TouchableOpacity key={exercise.id} onPress={() => handleSelectExercise(exercise)}>
+                <Card style={styles.card}>
+                  <Text style={styles.exerciseName}>{toTitleCase(exercise.name)}</Text>
+                  <Text style={styles.exerciseDetails}>{exercise.target} | {exercise.equipment}</Text>
+                </Card>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
-      {searchResults.length > 0 && (
-        <View style={styles.resultsContainer}>
-          {searchResults.map((exercise) => (
-            <TouchableOpacity key={exercise.id} onPress={() => handleSelectExercise(exercise)}>
-              <Card style={styles.card}>
-                <Text style={styles.exerciseName}>{exercise.name}</Text>
-                <Text style={styles.exerciseDetails}>
-                  {exercise.target} | {exercise.equipment}
-                </Text>
-              </Card>
+        {currentWorkout?.exercises.map((exercise) => (
+          <View key={exercise.exerciseId} style={styles.exerciseBlock}>
+            <Text style={styles.exerciseTitle}>{toTitleCase(exercise.exerciseName)}</Text>
+            {(exerciseLogs[exercise.exerciseId] || []).map((set, index) => (
+              <View key={index} style={styles.setRow}>
+                <View style={styles.setLabel}>
+                  <Text style={styles.setText}>Set {index + 1}:</Text>
+                </View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Reps"
+                  placeholderTextColor="#666666"
+                  keyboardType="numeric"
+                  value={set.reps}
+                  onChangeText={(val) => handleInputChange(exercise.exerciseId, index, 'reps', val)}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Weight"
+                  placeholderTextColor="#666666"
+                  keyboardType="numeric"
+                  value={set.weight}
+                  onChangeText={(val) => handleInputChange(exercise.exerciseId, index, 'weight', val)}
+                />
+              </View>
+            ))}
+            <TouchableOpacity onPress={() => handleAddSet(exercise.exerciseId)}>
+              <Text style={styles.addSet}>+ Add Set</Text>
             </TouchableOpacity>
-          ))}
-        </View>
-      )}
+          </View>
+        ))}
 
-      {selectedExercises.map((exercise) => (
-        <View key={exercise.id} style={styles.exerciseBlock}>
-          <Text style={styles.exerciseTitle}>{exercise.name}</Text>
-          {exerciseLogs[exercise.id]?.map((log, index) => (
-            <View key={index} style={styles.setRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="Sets"
-                placeholderTextColor={colors.gray}
-                value={log.sets}
-                onChangeText={(value) => handleInputChange(exercise.id, index, 'sets', value)}
-                keyboardType="numeric"
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Reps"
-                placeholderTextColor={colors.gray}
-                value={log.reps}
-                onChangeText={(value) => handleInputChange(exercise.id, index, 'reps', value)}
-                keyboardType="numeric"
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Weight"
-                placeholderTextColor={colors.gray}
-                value={log.weight}
-                onChangeText={(value) => handleInputChange(exercise.id, index, 'weight', value)}
-                keyboardType="numeric"
-              />
-            </View>
-          ))}
-          <TouchableOpacity onPress={() => handleAddSet(exercise.id)}>
-            <Text style={styles.addSet}>+ Add Set</Text>
-          </TouchableOpacity>
-        </View>
-      ))}
-
-      <GradientButton onPress={handleSubmit} title="Save Workout" />
-    </ScrollView>
+        <GradientButton onPress={handleSubmit} title="Save Workout" style={styles.saveButton} />
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flex: 1,
     padding: spacing.medium,
-    
   },
-  label: {
-    ...typography.h3,
-    color: colors.textSecondary,
-     padding: spacing.xl,
+  contentContainer: {
+    paddingBottom: 100,
   },
-  input: {
-     backgroundColor: '#1A1A1A',
+  searchInput: {
+    backgroundColor: '#1A1A1A',
     color: '#FFFFFF',
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#333333',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
   },
   resultsContainer: {
     marginBottom: spacing.large,
   },
   card: {
     marginHorizontal: spacing.xl,
-    padding: spacing.xxl,
-    alignItems: 'left',
+    marginVertical: spacing.sm,
+    padding: spacing.lg,
+    alignItems: 'flex-start',
+    backgroundColor: '#1A1A1A',
+    borderRadius: 10,
   },
   exerciseName: {
-   
     ...typography.h3,
     color: colors.textPrimary,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.lg,
   },
   exerciseDetails: {
     ...typography.bodyMedium,
     color: colors.textSecondary,
   },
   exerciseBlock: {
-    marginBottom: spacing.large,
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.lg,
   },
   exerciseTitle: {
     ...typography.h2,
     color: colors.textPrimary,
-    marginHorizontal: spacing.xl,
+    marginHorizontal: spacing.lg,
     marginBottom: spacing.lg,
   },
   setRow: {
     flexDirection: 'row',
-    marginBottom: spacing.small,
+    alignItems: 'center',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.xs,
     gap: 8,
   },
- 
+  setLabel: {
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  setText: {
+    color: colors.textPrimary,
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginRight: 8,
+    width: 50,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#1A1A1A',
+    color: '#FFFFFF',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#333333',
+    marginBottom: spacing.small,
+  },
   addSet: {
     color: colors.primary,
-    marginTop: spacing.extraSmall,
+    marginTop: spacing.sm,
     fontWeight: 'bold',
+    marginHorizontal: spacing.lg,
+  },
+  saveButton: {
+    paddingHorizontal: spacing.lg,
+    alignSelf: 'center',
   },
 });
 

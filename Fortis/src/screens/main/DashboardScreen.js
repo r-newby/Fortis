@@ -21,10 +21,11 @@ import { spacing } from '../../utils/spacing';
 import { useApp } from '../../context/AppContext';
 import { LineChart, ProgressChart } from 'react-native-chart-kit';
 
+
 const { width } = Dimensions.get('window');
 
 const DashboardScreen = ({ navigation }) => {
-  const { userProfile, workouts, personalRecords } = useApp();
+  const { userProfile, workouts, personalRecords, reloadData } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [greeting, setGreeting] = useState('');
   const [motivationalQuote, setMotivationalQuote] = useState('');
@@ -123,14 +124,13 @@ const DashboardScreen = ({ navigation }) => {
     });
   };
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    calculateStats();
-    setRandomQuote();
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  };
+const onRefresh = async () => {
+  setRefreshing(true);
+  await reloadData(); // now it actually works
+  setRandomQuote();
+  setRefreshing(false);
+};
+
 
   const startNewSession = () => {
     navigation.navigate('Workouts');

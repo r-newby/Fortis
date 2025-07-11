@@ -82,8 +82,26 @@ export const AppProvider = ({ children }) => {
       }
 
       const key = `workouts_${authUser.id}`;
-      const raw = await AsyncStorage.getItem(key);
-      setWorkouts(raw ? JSON.parse(raw) : []);
+      const { data: supabaseWorkouts, error: workoutError } = await supabase
+  .from('workouts')
+  .select('*')
+  .eq('user_id', authUser.id)
+  .order('date', { ascending: false });
+
+if (workoutError) {
+  console.error('Error loading workouts:', workoutError.message);
+  setWorkouts([]);
+} else {
+  // Normalize fields from snake_case to camelCase
+  const normalized = supabaseWorkouts.map((w) => ({
+    ...w,
+    totalVolume: w.total_volume,
+    muscleGroup: w.muscle_group,
+  }));
+
+  setWorkouts(normalized);
+}
+
 
       const records = await storage.getPersonalRecords();
       setPersonalRecords(records);
