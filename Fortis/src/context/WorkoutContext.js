@@ -4,6 +4,7 @@ import { generateWorkout } from '../utils/mockData';
 
 const WorkoutContext = createContext();
 
+// Custom hook to consume the WorkoutContext
 export const useWorkout = () => {
   const context = useContext(WorkoutContext);
   if (!context) {
@@ -20,6 +21,7 @@ export const WorkoutProvider = ({ children }) => {
   const [workoutStartTime, setWorkoutStartTime] = useState(null);
   const [isCustomWorkout, setIsCustomWorkout] = useState(false);
 
+  // Initializes a new workout, either custom or generated
   const startNewWorkout = ({
     equipment = [],
     muscleGroup = '',
@@ -43,6 +45,7 @@ export const WorkoutProvider = ({ children }) => {
       isCustom,
       equipment,
       muscleGroup,
+      date: new Date().toISOString(), // Add date for tracking and filtering
       exercises: exercises.map(ex => ({
         exerciseId: ex.id,
         exerciseName: ex.name,
@@ -56,6 +59,58 @@ export const WorkoutProvider = ({ children }) => {
     return workout;
   };
 
+  // Adds or updates a set for a specific exercise in the workout
+  const addSet = (exerciseId, setData, index = null) => {
+    if (!currentWorkout) return;
+
+    const updatedWorkout = {
+      ...currentWorkout,
+      exercises: currentWorkout.exercises.map(ex => {
+        if (ex.exerciseId === exerciseId) {
+          const updatedSets = [...ex.completedSets];
+
+          if (index !== null && index < updatedSets.length) {
+            updatedSets[index] = { ...updatedSets[index], ...setData };
+          } else {
+            updatedSets.push(setData);
+          }
+
+          return { ...ex, completedSets: updatedSets };
+        }
+        return ex;
+      }),
+    };
+
+    setCurrentWorkout(updatedWorkout);
+  };
+
+  // Adds a new exercise to the workout if it hasn't been added yet
+  const addExerciseToWorkout = (exercise) => {
+    if (!currentWorkout) return;
+
+    const alreadyExists = currentWorkout.exercises.find(
+      (ex) => ex.exerciseId === exercise.exerciseId
+    );
+    if (alreadyExists) return;
+
+    const updatedWorkout = {
+      ...currentWorkout,
+      exercises: [
+        ...currentWorkout.exercises,
+        {
+          ...exercise,
+          plannedSets: 3,
+          plannedReps: 10,
+          completedSets: [],
+        },
+      ],
+    };
+
+    setCurrentWorkout(updatedWorkout);
+  };
+
+  /*
+  // (Legacy version — not currently used)
   const addSet = (exerciseId, setData) => {
     if (!currentWorkout) return;
 
@@ -74,11 +129,14 @@ export const WorkoutProvider = ({ children }) => {
 
     setCurrentWorkout(updatedWorkout);
   };
+  */
 
+  // Completes the current workout and returns summary data
   const completeWorkout = () => {
     if (!currentWorkout || !workoutStartTime) return null;
 
-    const duration = Math.floor((new Date() - workoutStartTime) / 1000);
+    const duration = Math.floor((new Date() - workoutStartTime) / 1000); // in seconds
+
     const totalVolume = currentWorkout.exercises.reduce((total, exercise) => {
       return total + exercise.completedSets.reduce((exTotal, set) => {
         return exTotal + (set.weight * set.reps);
@@ -87,12 +145,12 @@ export const WorkoutProvider = ({ children }) => {
 
     const completedWorkout = {
       ...currentWorkout,
-      date: new Date().toISOString(),
+      date: new Date().toISOString(), // override with completion time
       duration,
       totalVolume,
     };
 
-    // Reset workout state
+    // Clear state after completion
     setCurrentWorkout(null);
     setSelectedEquipment([]);
     setSelectedMuscleGroup('');
@@ -103,6 +161,7 @@ export const WorkoutProvider = ({ children }) => {
     return completedWorkout;
   };
 
+  // Context value available to consumers
   const value = {
     currentWorkout,
     selectedEquipment,
@@ -112,6 +171,7 @@ export const WorkoutProvider = ({ children }) => {
     isCustomWorkout,
     startNewWorkout,
     addSet,
+    addExerciseToWorkout,
     completeWorkout,
   };
 

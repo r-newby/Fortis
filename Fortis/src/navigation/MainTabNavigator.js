@@ -79,7 +79,6 @@ const WorkoutStackNavigator = () => {
         name="ExerciseLogging" 
         component={ExerciseLoggingScreen}
         options={{
-          presentation: 'modal',
           animation: 'slide_from_bottom',
         }}
       />

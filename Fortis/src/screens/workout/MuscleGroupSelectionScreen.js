@@ -181,31 +181,6 @@ console.log('fitnessLevel:', userProfile?.fitnessLevel);
           ))}
         </View>
 
-        {/* Workout Info */}
-        <View style={styles.infoSection}>
-          <Card style={styles.infoCard}>
-            <View style={styles.infoHeader}>
-              <Ionicons name="information-circle" size={20} color={colors.info} />
-              <Text style={styles.infoTitle}>Workout Details</Text>
-            </View>
-            <Text style={styles.infoText}>
-              Your workout will be customized based on:
-            </Text>
-            <View style={styles.infoList}>
-              <Text style={styles.infoItem}>
-                • {userProfile?.fitnessLevel || 'Intermediate'} fitness level
-              </Text>
-              <Text style={styles.infoItem}>
-                • {userProfile?.goal?.charAt(0).toUpperCase() + 
-                   userProfile?.goal?.slice(1) || 'General'} training goal
-              </Text>
-              <Text style={styles.infoItem}>
-                • {selectedEquipment.length} available equipment
-              </Text>
-            </View>
-          </Card>
-        </View>
-
         {/* Generate Button */}
         <View style={styles.buttonContainer}>
           <GradientButton
@@ -268,7 +243,7 @@ const styles = StyleSheet.create({
   },
   muscleGroupList: {
     paddingHorizontal: spacing.xl,
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.sm,
   },
   muscleCard: {
     marginBottom: spacing.md,
