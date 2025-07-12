@@ -21,7 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const WorkoutsScreen = ({ navigation }) => {
   const { userProfile, workouts } = useApp();
-useEffect(() => {
+  useEffect(() => {
     const debugStorage = async () => {
       try {
         const keys = await AsyncStorage.getAllKeys();
@@ -38,12 +38,12 @@ useEffect(() => {
     debugStorage();
   }, [userProfile]);
   const startCustomWorkout = () => {
-  navigation.navigate('ExerciseLogging');
-};
+    navigation.navigate('ExerciseLogging');
+  };
 
   const startGenerateWorkout = () => {
-  navigation.navigate('EquipmentSelection');
-};
+    navigation.navigate('EquipmentSelection');
+  };
 
 
   const quickStartOptions = [
@@ -97,19 +97,19 @@ useEffect(() => {
         {/* Start Workout Button */}
         <View style={styles.buttonContainer}>
           <GradientButton
-  title="Start Custom Workout"
-  onPress={startCustomWorkout}
-/>
-</View>
+            title="Start Custom Workout"
+            onPress={startCustomWorkout}
+          />
+        </View>
 
- {/* Generatee Workout Button */}
+        {/* Generatee Workout Button */}
         <View style={styles.buttonContainer}>
           <GradientButton
-  title="Generate Workout"
-  onPress={startGenerateWorkout}
-/>
+            title="Generate Workout"
+            onPress={startGenerateWorkout}
+          />
 
-      </View>
+        </View>
 
         {/* Quick Start Options */}
         <View style={styles.section}>
@@ -142,33 +142,40 @@ useEffect(() => {
           </View>
         </View>
 
+
         {/* Recent Workouts */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Workouts</Text>
           {workouts.length > 0 ? (
-            workouts.slice(0, 3).map((workout, index) => (
-              <Card key={workout.id} style={styles.recentWorkoutCard}>
-                <View style={styles.workoutHeader}>
-                  <View>
-                   <Text style={styles.workoutTitle}>
-  {workout.muscle_group
-    ? workout.muscle_group.charAt(0).toUpperCase() +
-      workout.muscle_group.slice(1).replace('_', ' ') + ' Workout'
-    : 'Unnamed Workout'}
-</Text>
+            workouts.slice(0, 3).map((workout, index) => {
+              // Calculate volume if not present or format properly
+              const volume = workout.total_volume || workout.totalVolume || 0;
+              const formattedVolume = volume > 0 ?
+                (volume >= 1000 ? `${(volume / 1000).toFixed(1)}k` : volume.toString()) :
+                '0';
 
-
-                    <Text style={styles.workoutDate}>
-                      {new Date(workout.date).toLocaleDateString()}
-                    </Text>
+              return (
+                <Card key={workout.id} style={styles.recentWorkoutCard}>
+                  <View style={styles.workoutHeader}>
+                    <View>
+                      <Text style={styles.workoutTitle}>
+                        {workout.muscle_group
+                          ? workout.muscle_group.charAt(0).toUpperCase() +
+                          workout.muscle_group.slice(1).replace('_', ' ') + ' Workout'
+                          : 'Unnamed Workout'}
+                      </Text>
+                      <Text style={styles.workoutDate}>
+                        {new Date(workout.date).toLocaleDateString()}
+                      </Text>
+                    </View>
+                    <View style={styles.workoutStats}>
+                      <Text style={styles.workoutStatValue}>{formattedVolume}</Text>
+                      <Text style={styles.workoutStatLabel}>lbs</Text>
+                    </View>
                   </View>
-                  <View style={styles.workoutStats}>
-                    <Text style={styles.workoutStatValue}>{workout.totalVolume}</Text>
-                    <Text style={styles.workoutStatLabel}>lbs</Text>
-                  </View>
-                </View>
-              </Card>
-            ))
+                </Card>
+              );
+            })
           ) : (
             <Card style={styles.emptyCard}>
               <Text style={styles.emptyText}>No workouts yet</Text>

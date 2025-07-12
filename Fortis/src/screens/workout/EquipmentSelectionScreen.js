@@ -19,7 +19,7 @@ import { useWorkout } from '../../context/WorkoutContext';
 
 const equipmentOptions = [
   {
-    id: 'dumbbells',
+    id: 'dumbbell',
     name: 'Dumbbells',
     icon: '🏋️',
     description: 'Free weights',
@@ -28,43 +28,43 @@ const equipmentOptions = [
     id: 'barbell',
     name: 'Barbell',
     icon: '🏋️‍♂️',
-    description: 'Olympic bar',
+    description: 'Olympic/standard bar',
   },
   {
-    id: 'bodyweight',
+    id: 'body weight',
     name: 'Bodyweight',
     icon: '💪',
-    description: 'No equipment',
-  },
-  {
-    id: 'resistance_bands',
-    name: 'Bands',
-    icon: '🎯',
-    description: 'Resistance bands',
-  },
-  {
-    id: 'kettlebell',
-    name: 'Kettlebell',
-    icon: '🔔',
-    description: 'Kettlebells',
-  },
-  {
-    id: 'pullup_bar',
-    name: 'Pull-up Bar',
-    icon: '🚪',
-    description: 'Door/wall bar',
-  },
-  {
-    id: 'bench',
-    name: 'Bench',
-    icon: '🪑',
-    description: 'Flat/incline',
+    description: 'No equipment needed',
   },
   {
     id: 'cable',
-    name: 'Cables',
+    name: 'Cable Machine',
     icon: '🔗',
-    description: 'Cable machine',
+    description: 'Cable/pulley system',
+  },
+  {
+    id: 'resistance band',
+    name: 'Resistance Bands',
+    icon: '🎯',
+    description: 'Elastic bands',
+  },
+  {
+    id: 'kettlebell',
+    name: 'Kettlebells',
+    icon: '🔔',
+    description: 'Bell-shaped weights',
+  },
+  {
+    id: 'medicine ball',
+    name: 'Medicine Ball',
+    icon: '⚽',
+    description: 'Weighted ball',
+  },
+  {
+    id: 'smith machine',
+    name: 'Smith Machine',
+    icon: '🏗️',
+    description: 'Guided barbell system',
   },
 ];
 
@@ -75,7 +75,7 @@ const EquipmentSelectionScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     // Pre-select bodyweight by default
-    setSelectedEquipment(['bodyweight']);
+    setSelectedEquipment(['body weight']);
   }, []);
 
   const toggleEquipment = (equipmentId) => {
@@ -149,7 +149,7 @@ const EquipmentSelectionScreen = ({ navigation, route }) => {
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          
+
           <View style={styles.headerText}>
             <Text style={styles.title}>Select Equipment</Text>
             <Text style={styles.subtitle}>Choose what's available to you</Text>

@@ -13,6 +13,7 @@ import WorkoutsScreen from '../screens/main/WorkoutsScreen';
 import ProgressScreen from '../screens/main/ProgressScreen';
 import SocialScreen from '../screens/main/SocialScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
+import PersonalRecordsScreen from '../screens/main/PersonalRecordsScreen';
 
 // Import workout flow screens
 import EquipmentSelectionScreen from '../screens/workout/EquipmentSelectionScreen';
@@ -95,57 +96,16 @@ const WorkoutStackNavigator = () => {
 
 // Animated Tab Bar Icon Component
 const TabBarIcon = ({ name, focused, label }) => {
-  const scaleValue = useRef(new Animated.Value(1)).current;
-  const translateY = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (focused) {
-      Animated.parallel([
-        Animated.spring(scaleValue, {
-          toValue: 1.2,
-          friction: 3,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: -5,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.spring(scaleValue, {
-          toValue: 1,
-          friction: 3,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [focused]);
-
+  // Remove all the useRef and useEffect animation code
+  
   return (
-    <Animated.View 
-      style={[
-        styles.tabBarIconContainer,
-        {
-          transform: [
-            { scale: scaleValue },
-            { translateY: translateY }
-          ],
-        }
-      ]}
-    >
+    <View style={styles.tabBarIconContainer}>
       <Ionicons
         name={name}
         size={24}
         color={focused ? colors.primary : colors.textSecondary}
       />
-      <Animated.Text 
+      <Text 
         style={[
           styles.tabBarLabel,
           { 
@@ -155,8 +115,8 @@ const TabBarIcon = ({ name, focused, label }) => {
         ]}
       >
         {label}
-      </Animated.Text>
-    </Animated.View>
+      </Text>
+    </View>
   );
 };
 
@@ -205,7 +165,13 @@ const MainTabNavigator = () => {
           ),
         }}
       />
-     
+      <Tab.Screen
+        name="PersonalRecords"
+        component={PersonalRecordsScreen}
+        options={{
+          tabBarButton: () => null, // Hide from tab bar
+        }}
+      />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
