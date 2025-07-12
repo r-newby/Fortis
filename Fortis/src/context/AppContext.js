@@ -82,26 +82,45 @@ export const AppProvider = ({ children }) => {
       }
 
       const key = `workouts_${authUser.id}`;
+
       const { data: supabaseWorkouts, error: workoutError } = await supabase
-  .from('workouts')
-  .select('*')
-  .eq('user_id', authUser.id)
-  .order('date', { ascending: false });
+        .from('workouts')
+        .select(`
+          *,
+          workout_exercises (
+            actual_reps,
+            actual_weight,
+            sets,
+            reps,
+            weight
+          )
+        `)
+        .eq('user_id', authUser.id)
+        .order('date', { ascending: false });
 
-if (workoutError) {
-  console.error('Error loading workouts:', workoutError.message);
-  setWorkouts([]);
-} else {
-  // Normalize fields from snake_case to camelCase
-  const normalized = supabaseWorkouts.map((w) => ({
-    ...w,
-    totalVolume: w.total_volume,
-    muscleGroup: w.muscle_group,
-  }));
+      if (workoutError) {
+        console.error('Error loading workouts:', workoutError.message);
+        setWorkouts([]);
+      } else {
+        // Calculate total volume for each workout
+      const normalized = supabaseWorkouts.map((w) => {
+        const totalVolume = w.workout_exercises?.reduce((sum, ex) => {
+          // Use actual values if available, fallback to planned values
+          const reps = ex.actual_reps || ex.reps || 0;
+          const weight = ex.actual_weight || ex.weight || 0;
+          const sets = ex.sets || 1;
+          return sum + (reps * weight * sets);
+        }, 0) || 0;
 
-  setWorkouts(normalized);
-}
+        return {
+          ...w,
+          totalVolume,
+          muscleGroup: w.muscle_group,
+        };
+      });
 
+      setWorkouts(normalized);
+    }
 
       const records = await storage.getPersonalRecords();
       setPersonalRecords(records);
@@ -163,10 +182,50 @@ if (workoutError) {
     }
     return success;
   };
+// Add to AppContext.js to replace the AsyncStorage version
+const saveProgressionSuggestion = async (exerciseId, suggestionData) => {
+  try {
+    const { data, error } = await supabase
+      .from('progression_suggestions')
+      .insert({
+        user_id: user?.id,
+        exercise_id: exerciseId,
+        suggestion_type: suggestionData.suggestion,
+        old_weight: suggestionData.weight,
+        new_weight: suggestionData.newWeight,
+        intensity_rating: suggestionData.intensity,
+        reason: `${suggestionData.suggestion}_based_on_intensity_${suggestionData.intensity}`,
+      });
 
-  const completeOnboarding = () => {
-    setIsOnboarded(true);
-  };
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Failed to save progression suggestion:', error);
+    return false;
+  }
+};
+
+const getProgressionHistory = async (exerciseId) => {
+  try {
+    const { data, error } = await supabase
+      .from('progression_suggestions')
+      .select('*')
+      .eq('user_id', user?.id)
+      .eq('exercise_id', exerciseId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+    return data?.[0] || null;
+  } catch (error) {
+    console.error('Failed to get progression history:', error);
+    return null;
+  }
+};
+
+const completeOnboarding = () => {
+  setIsOnboarded(true);
+};
 
   const value = {
     user,
@@ -182,6 +241,8 @@ if (workoutError) {
     clearAllData,
     reloadData: loadAppData,
     completeOnboarding,
+     saveProgressionSuggestion,
+  getProgressionHistory,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -19,8 +19,8 @@ import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 import { useApp } from '../../context/AppContext';
-import { LineChart, ProgressChart } from 'react-native-chart-kit';
-
+import { ProgressChart } from 'react-native-chart-kit';
+import { useFocusEffect } from '@react-navigation/native'; // Add this import
 
 const { width } = Dimensions.get('window');
 
@@ -46,7 +46,8 @@ const DashboardScreen = ({ navigation }) => {
     weeklyGoal: 4,
     weeklyProgress: 0,
     todayWorkout: false,
-    caloriesBurned: 0,
+    weeklyAverageIntensity: 0,
+    weeklyCompletionRate: 100,
   });
 
   useEffect(() => {
@@ -54,6 +55,13 @@ const DashboardScreen = ({ navigation }) => {
     setTimeBasedGreeting();
     setRandomQuote();
   }, [workouts]);
+
+  // Recalculate stats when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      calculateStats();
+    }, [workouts])
+  );
 
   const setTimeBasedGreeting = () => {
     const hour = new Date().getHours();
@@ -65,7 +73,6 @@ const DashboardScreen = ({ navigation }) => {
       setGreeting('Good evening');
     }
   };
-
 
   const setRandomQuote = () => {
     const randomIndex = Math.floor(Math.random() * motivationalQuotes.length);
@@ -80,12 +87,23 @@ const DashboardScreen = ({ navigation }) => {
     const weeklyWorkouts = workouts.filter(w => 
       new Date(w.date) >= oneWeekAgo
     );
-
+    
+    console.log('All workouts from context:', workouts);
+    console.log('Filtered weekly workouts:', weeklyWorkouts);
+    console.log('Weekly completion values:', weeklyWorkouts.map(w => w.completion_percentage));
+    
     // Calculate streak
     let streak = 0;
     const today = new Date();
     const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
     
+    // Calculate enhanced stats
+    const weeklyAverageIntensity = weeklyWorkouts.reduce((sum, w) => 
+      sum + (w.average_intensity || 3), 0) / (weeklyWorkouts.length || 1);
+    
+    const weeklyCompletionRate = weeklyWorkouts.reduce((sum, w) => 
+      sum + (w.completion_percentage ?? 0), 0) / (weeklyWorkouts.length || 1);
+
     for (let i = 0; i < sortedWorkouts.length; i++) {
       const workoutDate = new Date(sortedWorkouts[i].date);
       const daysDiff = Math.floor((today - workoutDate) / (1000 * 60 * 60 * 24));
@@ -104,10 +122,10 @@ const DashboardScreen = ({ navigation }) => {
     });
 
     // Calculate total volume for the week
-    const weeklyVolume = weeklyWorkouts.reduce((sum, w) => sum + (w.totalVolume || 0), 0);
-
-    // Calculate estimated calories (mock calculation)
-    const caloriesBurned = weeklyWorkouts.length * 250;
+    const weeklyVolume = weeklyWorkouts.reduce((sum, w) => {
+      // Use total_volume if available (from database), otherwise calculate from totalVolume
+      return sum + (w.total_volume || w.totalVolume || 0);
+    }, 0);
 
     // Get last workout
     const lastWorkout = sortedWorkouts[0] || null;
@@ -120,44 +138,20 @@ const DashboardScreen = ({ navigation }) => {
       weeklyGoal: 4,
       weeklyProgress: (weeklyWorkouts.length / 4) * 100,
       todayWorkout,
-      caloriesBurned,
+      weeklyAverageIntensity: Math.round(weeklyAverageIntensity),
+      weeklyCompletionRate: Math.round(weeklyCompletionRate),
     });
   };
 
-const onRefresh = async () => {
-  setRefreshing(true);
-  await reloadData(); // now it actually works
-  setRandomQuote();
-  setRefreshing(false);
-};
-
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await reloadData();
+    setRandomQuote();
+    setRefreshing(false);
+  };
 
   const startNewSession = () => {
     navigation.navigate('Workouts');
-  };
-
-  const getWeeklyChartData = () => {
-    const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-    const data = new Array(7).fill(0);
-    
-    // Fill in actual workout data
-    workouts.forEach(workout => {
-      const workoutDate = new Date(workout.date);
-      const today = new Date();
-      const daysDiff = Math.floor((today - workoutDate) / (1000 * 60 * 60 * 24));
-      
-      if (daysDiff < 7) {
-        const dayIndex = (workoutDate.getDay() + 6) % 7; // Adjust for week starting on Monday
-        data[dayIndex] = (data[dayIndex] || 0) + 1;
-      }
-    });
-
-    return {
-      labels: days,
-      datasets: [{
-        data: data.length > 0 ? data : [0, 0, 0, 0, 0, 0, 0],
-      }],
-    };
   };
 
   const getProgressData = () => {
@@ -270,12 +264,41 @@ const onRefresh = async () => {
           </LinearGradient>
         </Card>
 
-        {/* Today's Progress */}
+        {/* Today's Focus */}
         <View style={styles.todaySection}>
-          <Text style={styles.sectionTitle}>Today's Progress</Text>
+          <Text style={styles.sectionTitle}>Today</Text>
           <Card style={styles.todayCard}>
-            <View style={styles.todayContent}>
-              <View style={styles.todayLeft}>
+            {stats.todayWorkout ? (
+              <View style={styles.todayComplete}>
+                <Ionicons name="checkmark-circle" size={40} color={colors.success} />
+                <Text style={styles.todayCompleteText}>Workout Complete! 🎉</Text>
+                <Text style={styles.todayCompleteSubtext}>Great job staying consistent!</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.todayText}>Ready for your workout?</Text>
+                <TouchableOpacity style={styles.startTodayButton} onPress={startNewSession}>
+                  <LinearGradient
+                    colors={colors.gradientPrimary}
+                    style={styles.startTodayGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Ionicons name="play" size={20} color="#FFFFFF" />
+                    <Text style={styles.startTodayText}>Start Today's Workout</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            )}
+          </Card>
+        </View>
+
+        {/* This Week Progress */}
+        <View style={styles.weekSection}>
+          <Text style={styles.sectionTitle}>This Week</Text>
+          <Card style={styles.weeklyProgressCard}>
+            <View style={styles.weeklyProgressContent}>
+              <View style={styles.weeklyLeft}>
                 <ProgressChart
                   data={getProgressData()}
                   width={80}
@@ -295,97 +318,56 @@ const onRefresh = async () => {
                   </Text>
                 </View>
               </View>
-              <View style={styles.todayRight}>
-                <View style={styles.todayStat}>
-                  <Text style={styles.todayStatValue}>{stats.weeklyWorkouts}/{stats.weeklyGoal}</Text>
-                  <Text style={styles.todayStatLabel}>Weekly Goal</Text>
+              <View style={styles.weeklyRight}>
+                <View style={styles.weeklyStat}>
+                  <Text style={styles.weeklyStatValue}>{stats.weeklyWorkouts}/{stats.weeklyGoal}</Text>
+                  <Text style={styles.weeklyStatLabel}>Workouts</Text>
                 </View>
-                <View style={styles.todayStat}>
+                <View style={styles.weeklyStat}>
                   <View style={styles.streakContainer}>
-                    <Text style={styles.todayStatValue}>{stats.currentStreak}</Text>
+                    <Text style={styles.weeklyStatValue}>{stats.currentStreak}</Text>
                     {stats.currentStreak > 0 && <Text style={styles.fireEmoji}>🔥</Text>}
                   </View>
-                  <Text style={styles.todayStatLabel}>Day Streak</Text>
+                  <Text style={styles.weeklyStatLabel}>Day Streak</Text>
                 </View>
               </View>
             </View>
-            
-            {!stats.todayWorkout && (
-              <TouchableOpacity style={styles.startTodayButton} onPress={startNewSession}>
-                <LinearGradient
-                  colors={colors.gradientPrimary}
-                  style={styles.startTodayGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Ionicons name="play" size={20} color="#FFFFFF" />
-                  <Text style={styles.startTodayText}>Start Today's Workout</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
           </Card>
         </View>
 
         {/* Quick Actions */}
-        <View style={styles.quickActionsGrid}>
-          <QuickAction
-            icon="barbell"
-            title="Quick Start"
-            color={colors.primary}
-            onPress={startNewSession}
-          />
-          <QuickAction
-            icon="trophy"
-            title="PRs"
-            color={colors.warning}
-            badge={Object.keys(personalRecords).length}
-            onPress={() => navigation.navigate('Progress')}
-          />
-          <QuickAction
-            icon="calendar"
-            title="Schedule"
-            color={colors.success}
-            onPress={() => navigation.navigate('Workouts')}
-          />
-        </View>
-
-        {/* Weekly Activity Chart */}
-        <View style={styles.chartSection}>
-          <View style={styles.chartHeader}>
-            <Text style={styles.sectionTitle}>This Week</Text>
-            <Text style={styles.chartSubtitle}>{stats.caloriesBurned} cal burned</Text>
-          </View>
-          <Card style={styles.chartCard}>
-            <LineChart
-              data={getWeeklyChartData()}
-              width={width - spacing.xl * 4}
-              height={180}
-              chartConfig={{
-                backgroundColor: colors.surface,
-                backgroundGradientFrom: colors.surface,
-                backgroundGradientTo: colors.surface,
-                decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(139, 148, 158, ${opacity})`,
-                style: {
-                  borderRadius: 16,
-                },
-                propsForDots: {
-                  r: '4',
-                  strokeWidth: '2',
-                  stroke: colors.primary,
-                },
-              }}
-              bezier
-              style={{
-                marginVertical: spacing.sm,
-                borderRadius: 16,
-              }}
+        <View style={styles.quickActionsSection}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActionsGrid}>
+            <QuickAction
+              icon="barbell"
+              title="Start Workout"
+              color={colors.primary}
+              onPress={startNewSession}
             />
-          </Card>
+            <QuickAction
+              icon="trophy"
+              title="Personal Records"
+              color={colors.warning}
+              badge={Object.keys(personalRecords).length}
+              onPress={() => navigation.navigate('Progress')}
+            />
+            <QuickAction
+              icon="analytics"
+              title="Progress"
+              color={colors.info}
+              onPress={() => navigation.navigate('Progress')}
+            />
+            <QuickAction
+              icon="calendar"
+              title="Workout History"
+              color={colors.success}
+              onPress={() => navigation.navigate('Workouts')}
+            />
+          </View>
         </View>
 
-        {/* Stats Grid */}
+        {/* Your Stats */}
         <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>Your Stats</Text>
           <View style={styles.statsGrid}>
@@ -412,55 +394,36 @@ const onRefresh = async () => {
                 <Text style={styles.statLabel}>Weekly Volume</Text>
               </LinearGradient>
             </Card>
+
+            <Card style={styles.statCard}>
+              <LinearGradient
+                colors={['rgba(34, 197, 94, 0.1)', 'rgba(34, 197, 94, 0.05)']}
+                style={styles.statGradient}
+              >
+                <Ionicons name="analytics" size={24} color={colors.success} />
+                <Text style={styles.statValue}>{stats.weeklyAverageIntensity || 0}/5</Text>
+                <Text style={styles.statLabel}>Avg Intensity</Text>
+              </LinearGradient>
+            </Card>
+
+            <Card style={styles.statCard}>
+              <LinearGradient
+                colors={['rgba(168, 85, 247, 0.1)', 'rgba(168, 85, 247, 0.05)']}
+                style={styles.statGradient}
+              >
+                <Ionicons name="checkmark-circle" size={24} color="#a855f7" />
+                <Text style={styles.statValue}>
+                  {stats.weeklyWorkouts === 0 ? '0%' : `${stats.weeklyCompletionRate}%`}
+                </Text>
+                <Text style={styles.statLabel}>Completion</Text>
+              </LinearGradient>
+            </Card>
           </View>
         </View>
 
         {/* Upcoming Workout Suggestion */}
         <UpcomingWorkout />
 
-        {/* Recent Activity */}
-        <View style={styles.recentSection}>
-          <View style={styles.recentHeader}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Progress')}>
-              <Text style={styles.viewAllText}>View All</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {stats.lastWorkout ? (
-            <Card style={styles.activityCard}>
-              <TouchableOpacity 
-                style={styles.activityContent}
-                onPress={() => navigation.navigate('Progress')}
-              >
-                <View style={styles.activityIcon}>
-                  <Ionicons name="checkmark-circle" size={32} color={colors.success} />
-                </View>
-                <View style={styles.activityInfo}>
-                  <Text style={styles.activityTitle}>
-                    {stats.lastWorkout.muscleGroup?.replace('_', ' ').charAt(0).toUpperCase() + 
-                     stats.lastWorkout.muscleGroup?.slice(1).replace('_', ' ')} Workout
-                  </Text>
-                  <Text style={styles.activitySubtitle}>
-                    {new Date(stats.lastWorkout.date).toLocaleDateString()} • {stats.lastWorkout.totalVolume} lbs
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </Card>
-          ) : (
-            <Card style={styles.emptyCard}>
-              <Text style={styles.emptyIcon}>💪</Text>
-              <Text style={styles.emptyTitle}>No workouts yet</Text>
-              <Text style={styles.emptyText}>
-                Start your first workout to see your activity here
-              </Text>
-              <TouchableOpacity style={styles.emptyButton} onPress={startNewSession}>
-                <Text style={styles.emptyButtonText}>Start Now</Text>
-              </TouchableOpacity>
-            </Card>
-          )}
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -560,12 +523,55 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xl,
     padding: spacing.xl,
   },
-  todayContent: {
-    flexDirection: 'row',
+  todayComplete: {
     alignItems: 'center',
+    paddingVertical: spacing.xl,
+  },
+  todayCompleteText: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  todayCompleteSubtext: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
+  todayText: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    textAlign: 'center',
     marginBottom: spacing.lg,
   },
-  todayLeft: {
+  startTodayButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  startTodayGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  startTodayText: {
+    ...typography.button,
+    color: '#FFFFFF',
+  },
+  weekSection: {
+    marginBottom: spacing.xl,
+  },
+  weeklyProgressCard: {
+    marginHorizontal: spacing.xl,
+    padding: spacing.lg,
+  },
+  weeklyProgressContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  weeklyLeft: {
     position: 'relative',
     marginRight: spacing.xl,
   },
@@ -583,18 +589,21 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: 'bold',
   },
-  todayRight: {
+  weeklyRight: {
     flex: 1,
-    gap: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
   },
-  todayStat: {
+  weeklyStat: {
+    alignItems: 'center',
     gap: spacing.xs,
   },
-  todayStatValue: {
+  weeklyStatValue: {
     ...typography.h3,
     color: colors.textPrimary,
+    fontWeight: 'bold',
   },
-  todayStatLabel: {
+  weeklyStatLabel: {
     ...typography.caption,
     color: colors.textSecondary,
     textTransform: 'uppercase',
@@ -607,27 +616,14 @@ const styles = StyleSheet.create({
   fireEmoji: {
     fontSize: 16,
   },
-  startTodayButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  startTodayGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  startTodayText: {
-    ...typography.button,
-    color: '#FFFFFF',
+  quickActionsSection: {
+    marginBottom: spacing.xl,
   },
   quickActionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
-    marginBottom: spacing.xl,
     gap: spacing.md,
   },
   quickAction: {
@@ -669,25 +665,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
   },
-  chartSection: {
-    marginBottom: spacing.xl,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
-  },
-  chartSubtitle: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-  },
-  chartCard: {
-    marginHorizontal: spacing.xl,
-    padding: spacing.lg,
-    alignItems: 'center',
-  },
   statsSection: {
     marginBottom: spacing.xl,
   },
@@ -695,24 +672,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: spacing.xl,
     gap: spacing.md,
+    flexWrap: 'wrap',
   },
   statCard: {
-    flex: 1,
+    width: '48%',
     overflow: 'hidden',
   },
   statGradient: {
-    padding: spacing.xl,
+    padding: spacing.lg,
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   statValue: {
-    ...typography.h1,
+    ...typography.h2,
     color: colors.textPrimary,
   },
   statLabel: {
     ...typography.caption,
     color: colors.textSecondary,
     textTransform: 'uppercase',
+    textAlign: 'center', 
   },
   upcomingCard: {
     marginHorizontal: spacing.xl,
@@ -748,74 +727,6 @@ const styles = StyleSheet.create({
   upcomingTime: {
     ...typography.bodySmall,
     color: colors.textSecondary,
-  },
-  recentSection: {
-    marginBottom: spacing.xl,
-  },
-  recentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
-  },
-  viewAllText: {
-    ...typography.bodyMedium,
-    color: colors.primary,
-  },
-  activityCard: {
-    marginHorizontal: spacing.xl,
-  },
-  activityContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  activityIcon: {
-    marginRight: spacing.lg,
-  },
-  activityInfo: {
-    flex: 1,
-  },
-  activityTitle: {
-    ...typography.bodyLarge,
-    color: colors.textPrimary,
-    fontWeight: '600',
-    marginBottom: spacing.xs,
-  },
-  activitySubtitle: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-  },
-  emptyCard: {
-    marginHorizontal: spacing.xl,
-    padding: spacing.xxxl,
-    alignItems: 'center',
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: spacing.lg,
-  },
-  emptyTitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  emptyText: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-  },
-  emptyButton: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.primary,
-    borderRadius: 20,
-  },
-  emptyButtonText: {
-    ...typography.button,
-    color: '#FFFFFF',
   },
 });
 
