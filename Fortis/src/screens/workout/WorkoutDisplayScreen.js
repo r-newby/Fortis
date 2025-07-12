@@ -361,7 +361,14 @@ const WorkoutDisplayScreen = ({ navigation, route }) => {
       Alert.alert('Workout Logged', 'Your workout has been saved!', [
         {
           text: 'OK',
-          onPress: () => navigation.getParent().navigate('Dashboard'),
+          onPress: () => {
+            // Reset navigation state to remove this screen from the stack
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'WorkoutsList' }],
+            });
+            navigation.getParent().navigate('Dashboard');
+          },
         },
       ]);
     } catch (error) {

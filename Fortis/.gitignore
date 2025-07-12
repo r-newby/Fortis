@@ -33,6 +33,7 @@ yarn-error.*
 # secret
 .env*.local
 .env
+env
 
 # typescript
 *.tsbuildinfo
