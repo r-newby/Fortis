@@ -155,6 +155,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  
   const loadAppData = async () => {
     try {
       setIsLoading(true);
@@ -335,7 +336,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const getProgressionHistory = async (exerciseId) => {
+  const getPreviousWorkout = async (exerciseId) => {
     try {
       const { data, error } = await supabase
         .from('progression_suggestions')
@@ -352,6 +353,38 @@ export const AppProvider = ({ children }) => {
       return null;
     }
   };
+
+const getProgressionHistory = async (exerciseId) => {
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('workout_exercises')
+    .select(`
+      actual_reps,
+      actual_weight,
+      created_at,
+      workout_id,
+      workouts (intensity, user_id)
+    `)
+    .eq('exercise_id', exerciseId)
+    .gte('created_at', new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString())
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Failed to get progression history:', error);
+    return [];
+  }
+
+  return data
+    .filter((row) => row.workouts?.user_id === user.id)
+    .map((row) => ({
+      date: row.created_at,
+      reps: row.actual_reps,
+      weight: row.actual_weight,
+      intensity: row.workouts?.intensity || 3,
+    }));
+};
+
 
   const completeOnboarding = () => {
     setIsOnboarded(true);
@@ -377,7 +410,7 @@ export const AppProvider = ({ children }) => {
     reloadData,
     completeOnboarding,
     saveProgressionSuggestion,
-    getProgressionHistory,
+    getProgressionHistory: getPreviousWorkout,
     // Expose the PR calculation function for manual recalculation if needed
     recalculatePersonalRecords: () => user?.id ? calculatePersonalRecords(user.id).then(setPersonalRecords) : null,
   };

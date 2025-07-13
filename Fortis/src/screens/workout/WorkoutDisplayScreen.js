@@ -147,21 +147,20 @@ const WorkoutDisplayScreen = ({ navigation, route }) => {
     }
   };
 
-  const submitIntensityRating = (rating) => {
-    setExerciseIntensities(prev => ({
-      ...prev,
-      [currentExercise]: rating
-    }));
-    
-    setShowIntensityModal(false);
-    
-    // Check for progression suggestion
-      const checkProgressionSuggestion = async (intensity) => {
+  const submitIntensityRating = async (rating) => {
+  setExerciseIntensities(prev => ({
+    ...prev,
+    [currentExercise]: rating
+  }));
+
+  setShowIntensityModal(false);
+
+  // Check for progression suggestion
+  const checkProgressionSuggestion = async (intensity) => {
     const exercise = workoutExercises[currentExercise];
-    
-    // Get previous history for this exercise
+
     const history = await getProgressionHistory(exercise.id);
-    
+
     let suggestion = null;
 
     // Enhanced progression logic with history
@@ -184,54 +183,128 @@ const WorkoutDisplayScreen = ({ navigation, route }) => {
     }
 
     if (suggestion) {
-      // Save the suggestion to history
       await saveProgressionSuggestion(exercise.id, {
         intensity,
         weight: currentWeight,
         suggestion: suggestion.type,
         newWeight: suggestion.newWeight
       });
-      
+
       setProgressionSuggestion(suggestion);
       setShowProgressionModal(true);
     }
   };
-    
-    // Move to next exercise or complete workout
-    if (currentExercise < workoutExercises.length - 1) {
-      setCurrentExercise(currentExercise + 1);
-      setCurrentSet(0);
-    } else {
-      setWorkoutComplete(true);
-    }
+
+  await checkProgressionSuggestion(rating);
+
+  if (currentExercise < workoutExercises.length - 1) {
+    setCurrentExercise(currentExercise + 1);
+    setCurrentSet(0);
+  } else {
+    setWorkoutComplete(true);
+  }
+};
+
+
+const handleProgressionDecision = async (accepted) => {
+  if (!progressionSuggestion) return;
+
+  try {
+    await saveProgressionSuggestion(progressionSuggestion.exerciseId, {
+      accepted,
+      suggestion: progressionSuggestion.type,
+      ...(progressionSuggestion.newWeight && { newWeight: progressionSuggestion.newWeight }),
+      ...(progressionSuggestion.newReps && { newReps: progressionSuggestion.newReps }),
+      ...(progressionSuggestion.addSet && { addSet: progressionSuggestion.addSet }),
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Failed to save progression decision:', error);
+  } finally {
+    setShowProgressionModal(false);
+  }
+};
+
+
+/*const checkProgressionSuggestion = async (intensity) => {
+  const exercise = workoutExercises[currentExercise];
+  const current = {
+    reps: currentReps,
+    weight: currentWeight
   };
 
-  const checkProgressionSuggestion = (intensity) => {
-    const exercise = workoutExercises[currentExercise];
-    let suggestion = null;
+  // Fetch last 2–3 weeks of data for this exercise
+  const history = await getProgressionHistory(exercise.id); // Assumes you already have this implemented
 
+  const recent = history?.filter(entry => {
+    const entryDate = new Date(entry.date);
+    const threeWeeksAgo = new Date();
+    threeWeeksAgo.setDate(threeWeeksAgo.getDate() - 21);
+    return entryDate >= threeWeeksAgo;
+  }) || [];
+
+  if (recent.length === 0) return;
+
+  const avgIntensity = recent.reduce((sum, h) => sum + h.intensity, 0) / recent.length;
+  const repsTrend = recent.every(h => h.reps >= current.reps);
+  const weightTrend = recent.every(h => h.weight >= current.weight);
+
+  let suggestion = null;
+
+  if (avgIntensity >= 3 && avgIntensity <= 4 && (repsTrend || weightTrend)) {
+    if (current.reps >= 12) {
     // Simple progression logic
     if (intensity <= 2) {
       suggestion = {
-        type: 'progression',
-        message: `Great job! You've been crushing this weight. Ready to try ${currentWeight + 5}lbs next week?`,
-        newWeight: currentWeight + 5,
-        exercise: exercise.name
+        type: 'set',
+        message: 'You’re crushing this! Add an extra set next time?',
+        addSet: 1,
+        exercise: exercise.name,
+        exerciseId: exercise.id
       };
-    } else if (intensity === 5) {
+    } else if (weightTrend) {
+      const increment = current.weight >= 150 ? 10 : 5;
       suggestion = {
-        type: 'regression',
-        message: `That looked tough! Let's try ${Math.max(currentWeight - 5, 0)}lbs next week and focus on perfect form.`,
-        newWeight: Math.max(currentWeight - 5, 0),
-        exercise: exercise.name
+        type: 'weight',
+        newWeight: current.weight + increment,
+        message: `Nice work! Try ${current.weight + increment} lbs next time.`,
+        exercise: exercise.name,
+        exerciseId: exercise.id
+      };
+    } else if (repsTrend) {
+      suggestion = {
+        type: 'reps',
+        newReps: current.reps + 1,
+        message: `Ready to bump up to ${current.reps + 1} reps per set?`,
+        exercise: exercise.name,
+        exerciseId: exercise.id
       };
     }
+  } else if (intensity === 5) {
+    suggestion = {
+      type: 'regression',
+      newWeight: Math.max(current.weight - 5, 0),
+      message: `That looked tough! Try ${Math.max(current.weight - 5, 0)} lbs next week to dial in form.`,
+      exercise: exercise.name,
+      exerciseId: exercise.id
+    };
+  }
 
-    if (suggestion) {
-      setProgressionSuggestion(suggestion);
-      setShowProgressionModal(true);
-    }
-  };
+  if (suggestion) {
+    await saveProgressionSuggestion(exercise.id, {
+      intensity,
+      reps: current.reps,
+      weight: current.weight,
+      suggestion: suggestion.type,
+      ...(suggestion.newWeight && { newWeight: suggestion.newWeight }),
+      ...(suggestion.newReps && { newReps: suggestion.newReps }),
+    });
+
+    setProgressionSuggestion(suggestion);
+    setShowProgressionModal(true);
+  }
+};*/
+
 
   const skipRest = () => {
     setIsTimerActive(false);
@@ -625,28 +698,30 @@ const WorkoutDisplayScreen = ({ navigation, route }) => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {progressionSuggestion?.type === 'progression' ? '💪 Ready to Level Up!' : '🎯 Smart Adjustment'}
-            </Text>
+       <Text style={styles.modalTitle}>
+       {['progression', 'weight', 'reps', 'set'].includes(progressionSuggestion?.type) ? 'Ready to Level Up?' : 'Smart Adjustment'}
+       </Text>
+
             <Text style={styles.modalMessage}>
               {progressionSuggestion?.message}
             </Text>
-            <View style={styles.progressionButtons}>
-              <TouchableOpacity 
-                onPress={() => setShowProgressionModal(false)}
-                style={styles.progressionButton}
-              >
-                <Text style={styles.progressionButtonText}>Accept</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={() => setShowProgressionModal(false)}
-                style={[styles.progressionButton, styles.progressionButtonSecondary]}
-              >
-                <Text style={[styles.progressionButtonText, styles.progressionButtonTextSecondary]}>
-                  Keep Current
-                </Text>
-              </TouchableOpacity>
-            </View>
+       <View style={styles.progressionButtons}>
+  <TouchableOpacity 
+    onPress={() => handleProgressionDecision(true)}
+    style={styles.progressionButton}
+  >
+    <Text style={styles.progressionButtonText}>Accept</Text>
+  </TouchableOpacity>
+  <TouchableOpacity 
+    onPress={() => handleProgressionDecision(false)}
+    style={[styles.progressionButton, styles.progressionButtonSecondary]}
+  >
+  <Text style={[styles.progressionButtonText, styles.progressionButtonTextSecondary]}>
+      Keep Current
+    </Text>
+  </TouchableOpacity>
+</View>
+
           </View>
         </View>
       </Modal>
