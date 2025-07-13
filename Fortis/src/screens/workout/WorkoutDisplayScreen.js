@@ -253,6 +253,8 @@ const handleProgressionDecision = async (accepted) => {
 
   if (avgIntensity >= 3 && avgIntensity <= 4 && (repsTrend || weightTrend)) {
     if (current.reps >= 12) {
+    // Simple progression logic
+    if (intensity <= 2) {
       suggestion = {
         type: 'set',
         message: 'You’re crushing this! Add an extra set next time?',

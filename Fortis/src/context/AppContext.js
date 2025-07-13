@@ -1,3 +1,5 @@
+// Updated AppContext.js - Personal Records calculated from Supabase workout data
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import storage from '../utils/asyncStorage';
 import { supabase } from '../supabase';
@@ -43,6 +45,116 @@ export const AppProvider = ({ children }) => {
     };
   }, []);
 
+  // Calculate Personal Records from Supabase workout data
+  const calculatePersonalRecords = async (userId) => {
+    try {
+      console.log('Calculating personal records for user:', userId);
+      
+      // Get all workout exercises with exercise details for this user
+      const { data: workoutExercises, error } = await supabase
+        .from('workout_exercises')
+        .select(`
+          *,
+          exercises (
+            id,
+            name,
+            target,
+            body_part,
+            equipment
+          ),
+          workouts!inner (
+            user_id,
+            date
+          )
+        `)
+        .eq('workouts.user_id', userId);
+
+      if (error) {
+        console.error('Error fetching workout exercises for PRs:', error);
+        return {};
+      }
+
+      console.log('Found workout exercises:', workoutExercises?.length || 0);
+
+      // Sort by date manually after fetching (since we can't order by joined table columns easily)
+      const sortedWorkoutExercises = workoutExercises?.sort((a, b) => 
+        new Date(a.workouts.date) - new Date(b.workouts.date)
+      ) || [];
+
+      const records = {};
+      const exerciseHistory = {}; // Track all attempts per exercise
+
+      sortedWorkoutExercises?.forEach(we => {
+        const exerciseName = we.exercises?.name;
+        const exerciseDetails = we.exercises;
+        
+        if (!exerciseName || !exerciseDetails) return;
+
+        // Use actual values if available, fallback to planned values
+        const weight = we.actual_weight || we.weight || 0;
+        const reps = we.actual_reps || we.reps || 0;
+        const workoutDate = we.workouts?.date;
+
+        // Skip if no meaningful data
+        if (reps <= 0) return;
+
+        // Initialize exercise history if first time seeing this exercise
+        if (!exerciseHistory[exerciseName]) {
+          exerciseHistory[exerciseName] = [];
+        }
+
+        // Calculate score for this attempt
+        let currentScore;
+        if (weight > 0) {
+          // Weighted exercise: prioritize by total volume
+          currentScore = weight * reps;
+        } else {
+          // Bodyweight exercise: prioritize by max reps
+          currentScore = reps;
+        }
+
+        // Add this attempt to history
+        exerciseHistory[exerciseName].push({
+          weight,
+          reps,
+          score: currentScore,
+          date: workoutDate,
+          exerciseDetails
+        });
+
+        // Only create a PR if this beats a previous attempt
+        const previousAttempts = exerciseHistory[exerciseName];
+        const isNewPR = previousAttempts.length > 1 && // Must have done this exercise before
+          currentScore > Math.max(...previousAttempts.slice(0, -1).map(attempt => attempt.score));
+
+        // If this is a new PR (or we're updating an existing PR with a better score)
+        if (isNewPR || (records[exerciseName] && currentScore > (records[exerciseName].volume || (records[exerciseName].weight * records[exerciseName].reps)))) {
+          records[exerciseName] = {
+            weight,
+            reps,
+            date: workoutDate,
+            exerciseId: exerciseDetails.id,
+            // Store exercise details for categorization
+            target: exerciseDetails.target,
+            bodypart: exerciseDetails.body_part,
+            equipment: exerciseDetails.equipment,
+            // Calculate volume for display
+            volume: weight * reps,
+            // Mark as a true PR
+            isPR: true
+          };
+        }
+      });
+
+      console.log('Calculated personal records (true PRs only):', Object.keys(records).length);
+      return records;
+
+    } catch (error) {
+      console.error('Error calculating personal records:', error);
+      return {};
+    }
+  };
+
   
   const loadAppData = async () => {
     try {
@@ -62,6 +174,7 @@ export const AppProvider = ({ children }) => {
 
       setUser(authUser);
 
+      // Load user profile
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -82,8 +195,7 @@ export const AppProvider = ({ children }) => {
         }
       }
 
-      const key = `workouts_${authUser.id}`;
-
+      // Load workouts from Supabase
       const { data: supabaseWorkouts, error: workoutError } = await supabase
         .from('workouts')
         .select(`
@@ -93,7 +205,10 @@ export const AppProvider = ({ children }) => {
             actual_weight,
             sets,
             reps,
-            weight
+            weight,
+            exercises (
+              name
+            )
           )
         `)
         .eq('user_id', authUser.id)
@@ -104,27 +219,29 @@ export const AppProvider = ({ children }) => {
         setWorkouts([]);
       } else {
         // Calculate total volume for each workout
-      const normalized = supabaseWorkouts.map((w) => {
-        const totalVolume = w.workout_exercises?.reduce((sum, ex) => {
-          // Use actual values if available, fallback to planned values
-          const reps = ex.actual_reps || ex.reps || 0;
-          const weight = ex.actual_weight || ex.weight || 0;
-          const sets = ex.sets || 1;
-          return sum + (reps * weight * sets);
-        }, 0) || 0;
+        const normalized = supabaseWorkouts.map((w) => {
+          const totalVolume = w.workout_exercises?.reduce((sum, ex) => {
+            // Use actual values if available, fallback to planned values
+            const reps = ex.actual_reps || ex.reps || 0;
+            const weight = ex.actual_weight || ex.weight || 0;
+            const sets = ex.sets || 1;
+            return sum + (reps * weight * sets);
+          }, 0) || 0;
 
-        return {
-          ...w,
-          totalVolume,
-          muscleGroup: w.muscle_group,
-        };
-      });
+          return {
+            ...w,
+            totalVolume,
+            muscleGroup: w.muscle_group,
+          };
+        });
 
-      setWorkouts(normalized);
-    }
+        setWorkouts(normalized);
+      }
 
-      const records = await storage.getPersonalRecords();
-      setPersonalRecords(records);
+      // Calculate Personal Records from Supabase data
+      const calculatedPRs = await calculatePersonalRecords(authUser.id);
+      setPersonalRecords(calculatedPRs);
+
     } catch (error) {
       console.error('Error loading app data:', error);
     } finally {
@@ -157,6 +274,13 @@ export const AppProvider = ({ children }) => {
       const updatedWorkouts = [...workoutsArray, workout];
       await AsyncStorage.setItem(key, JSON.stringify(updatedWorkouts));
       setWorkouts(updatedWorkouts);
+      
+      // Recalculate PRs after saving new workout
+      if (user?.id) {
+        const updatedPRs = await calculatePersonalRecords(user.id);
+        setPersonalRecords(updatedPRs);
+      }
+      
       return true;
     } catch (error) {
       console.error('Failed to save workout:', error);
@@ -164,12 +288,17 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // Updated to work with Supabase-calculated PRs
   const updatePersonalRecord = async (exerciseId, record) => {
-    const success = await storage.updatePersonalRecord(exerciseId, record);
-    if (success) {
-      setPersonalRecords(await storage.getPersonalRecords());
+    // Since PRs are now calculated from workout data, 
+    // we don't manually update them anymore
+    // Instead, recalculate from current workout data
+    if (user?.id) {
+      const updatedPRs = await calculatePersonalRecords(user.id);
+      setPersonalRecords(updatedPRs);
+      return true;
     }
-    return success;
+    return false;
   };
 
   const clearAllData = async () => {
@@ -183,46 +312,47 @@ export const AppProvider = ({ children }) => {
     }
     return success;
   };
-// Add to AppContext.js to replace the AsyncStorage version
-const saveProgressionSuggestion = async (exerciseId, suggestionData) => {
-  try {
-    const { data, error } = await supabase
-      .from('progression_suggestions')
-      .insert({
-        user_id: user?.id,
-        exercise_id: exerciseId,
-        suggestion_type: suggestionData.suggestion,
-        old_weight: suggestionData.weight,
-        new_weight: suggestionData.newWeight,
-        intensity_rating: suggestionData.intensity,
-        reason: `${suggestionData.suggestion}_based_on_intensity_${suggestionData.intensity}`,
-      });
 
-    if (error) throw error;
-    return true;
-  } catch (error) {
-    console.error('Failed to save progression suggestion:', error);
-    return false;
-  }
-};
+  // Add progression suggestion functions
+  const saveProgressionSuggestion = async (exerciseId, suggestionData) => {
+    try {
+      const { data, error } = await supabase
+        .from('progression_suggestions')
+        .insert({
+          user_id: user?.id,
+          exercise_id: exerciseId,
+          suggestion_type: suggestionData.suggestion,
+          old_weight: suggestionData.weight,
+          new_weight: suggestionData.newWeight,
+          intensity_rating: suggestionData.intensity,
+          reason: `${suggestionData.suggestion}_based_on_intensity_${suggestionData.intensity}`,
+        });
 
-const getPreviousWorkout = async (exerciseId) => {
-  try {
-    const { data, error } = await supabase
-      .from('progression_suggestions')
-      .select('*')
-      .eq('user_id', user?.id)
-      .eq('exercise_id', exerciseId)
-      .order('created_at', { ascending: false })
-      .limit(1);
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Failed to save progression suggestion:', error);
+      return false;
+    }
+  };
 
-    if (error) throw error;
-    return data?.[0] || null;
-  } catch (error) {
-    console.error('Failed to get progression history:', error);
-    return null;
-  }
-};
+  const getPreviousWorkout = async (exerciseId) => {
+    try {
+      const { data, error } = await supabase
+        .from('progression_suggestions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('exercise_id', exerciseId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+      return data?.[0] || null;
+    } catch (error) {
+      console.error('Failed to get progression history:', error);
+      return null;
+    }
+  };
 
 const getProgressionHistory = async (exerciseId) => {
   if (!user) return [];
@@ -256,9 +386,14 @@ const getProgressionHistory = async (exerciseId) => {
 };
 
 
-const completeOnboarding = () => {
-  setIsOnboarded(true);
-};
+  const completeOnboarding = () => {
+    setIsOnboarded(true);
+  };
+
+  // Enhanced reloadData that recalculates PRs
+  const reloadData = async () => {
+    await loadAppData();
+  };
 
   const value = {
     user,
@@ -272,10 +407,12 @@ const completeOnboarding = () => {
     saveWorkout,
     updatePersonalRecord,
     clearAllData,
-    reloadData: loadAppData,
+    reloadData,
     completeOnboarding,
-     saveProgressionSuggestion,
-  getProgressionHistory: getPreviousWorkout,
+    saveProgressionSuggestion,
+    getProgressionHistory: getPreviousWorkout,
+    // Expose the PR calculation function for manual recalculation if needed
+    recalculatePersonalRecords: () => user?.id ? calculatePersonalRecords(user.id).then(setPersonalRecords) : null,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

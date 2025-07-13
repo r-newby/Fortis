@@ -177,11 +177,6 @@ const WorkoutGenerationScreen = ({ route, navigation }) => {
     });
   };
 
-  // const handleModifyExercise = (exerciseIndex) => {
-  //   // You can implement exercise modification here
-  //   Alert.alert('Modify Exercise', 'Exercise modification coming soon!');
-  // };
-
   const renderWorkout = ({ item, index }) => (
   <Card style={[
     styles.exerciseCard,

@@ -67,17 +67,65 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     }
 
     const fetchExercises = async () => {
-      const { data, error } = await supabase
-        .from('exercises')
-        .select('*')
-        .ilike('name', `%${searchQuery}%`)
-        .limit(10);
+      console.log('Searching for:', searchQuery);
 
-      if (error) console.error('Error fetching exercises:', error);
-      else setSearchResults(data);
+      try {
+        // Split search query into words for multi-field search
+        const searchTerms = searchQuery.toLowerCase().trim().split(' ');
+
+        let query = supabase.from('exercises').select('*');
+
+        // Build OR conditions to search across all fields for any term
+        const orConditions = [];
+
+        searchTerms.forEach(term => {
+          orConditions.push(`name.ilike.%${term}%`);
+          orConditions.push(`equipment.ilike.%${term}%`);
+          orConditions.push(`target.ilike.%${term}%`);
+          orConditions.push(`body_part.ilike.%${term}%`);
+        });
+
+        // Use OR to search across all fields for any term
+        const { data, error } = await query
+          .or(orConditions.join(','))
+          .limit(20);
+
+        if (error) {
+          console.error('Error fetching exercises:', error);
+          setSearchResults([]);
+        } else {
+          console.log(`Found ${data?.length || 0} exercises for "${searchQuery}"`);
+
+          // Sort results by relevance (exercises matching multiple terms first)
+          const sortedResults = data?.sort((a, b) => {
+            const aMatches = searchTerms.filter(term =>
+              a.name?.toLowerCase().includes(term) ||
+              a.equipment?.toLowerCase().includes(term) ||
+              a.target?.toLowerCase().includes(term) ||
+              a.body_part?.toLowerCase().includes(term)
+            ).length;
+
+            const bMatches = searchTerms.filter(term =>
+              b.name?.toLowerCase().includes(term) ||
+              b.equipment?.toLowerCase().includes(term) ||
+              b.target?.toLowerCase().includes(term) ||
+              b.body_part?.toLowerCase().includes(term)
+            ).length;
+
+            return bMatches - aMatches;
+          }) || [];
+
+          setSearchResults(sortedResults);
+        }
+      } catch (err) {
+        console.error('Search error:', err);
+        setSearchResults([]);
+      }
     };
 
-    fetchExercises();
+    // Debounce the search
+    const timeoutId = setTimeout(fetchExercises, 300);
+    return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
   // Adds a new exercise to the workout and clears search
@@ -187,7 +235,7 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     setSearchResults([]);
     setExerciseLogs({});
     navigation.navigate('WorkoutSummary', { workoutId });
-    
+
   };
 
   return (

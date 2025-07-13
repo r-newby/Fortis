@@ -29,7 +29,7 @@ const DashboardScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [greeting, setGreeting] = useState('');
   const [motivationalQuote, setMotivationalQuote] = useState('');
-  
+
   const motivationalQuotes = [
     "The only bad workout is the one that didn't happen.",
     "Push harder than yesterday if you want a different tomorrow.",
@@ -83,31 +83,31 @@ const DashboardScreen = ({ navigation }) => {
     // Calculate weekly workouts
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
-    const weeklyWorkouts = workouts.filter(w => 
+
+    const weeklyWorkouts = workouts.filter(w =>
       new Date(w.date) >= oneWeekAgo
     );
-    
+
     console.log('All workouts from context:', workouts);
     console.log('Filtered weekly workouts:', weeklyWorkouts);
     console.log('Weekly completion values:', weeklyWorkouts.map(w => w.completion_percentage));
-    
+
     // Calculate streak
     let streak = 0;
     const today = new Date();
     const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
-    
+
     // Calculate enhanced stats
-    const weeklyAverageIntensity = weeklyWorkouts.reduce((sum, w) => 
+    const weeklyAverageIntensity = weeklyWorkouts.reduce((sum, w) =>
       sum + (w.average_intensity || 3), 0) / (weeklyWorkouts.length || 1);
-    
-    const weeklyCompletionRate = weeklyWorkouts.reduce((sum, w) => 
+
+    const weeklyCompletionRate = weeklyWorkouts.reduce((sum, w) =>
       sum + (w.completion_percentage ?? 0), 0) / (weeklyWorkouts.length || 1);
 
     for (let i = 0; i < sortedWorkouts.length; i++) {
       const workoutDate = new Date(sortedWorkouts[i].date);
       const daysDiff = Math.floor((today - workoutDate) / (1000 * 60 * 60 * 24));
-      
+
       if (daysDiff === i) {
         streak++;
       } else {
@@ -196,7 +196,7 @@ const DashboardScreen = ({ navigation }) => {
             <Ionicons name="refresh" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.upcomingContent}
           onPress={() => navigation.navigate('Workouts')}
         >
@@ -231,7 +231,7 @@ const DashboardScreen = ({ navigation }) => {
             <Text style={styles.username}>{userProfile?.username || 'Athlete'}</Text>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.notificationButton}
               onPress={() => navigation.navigate('Social')}
             >
@@ -349,8 +349,8 @@ const DashboardScreen = ({ navigation }) => {
               icon="trophy"
               title="Personal Records"
               color={colors.warning}
-              badge={Object.keys(personalRecords).length}
-              onPress={() => navigation.navigate('Progress')}
+
+              onPress={() => navigation.navigate('PersonalRecords')}
             />
             <QuickAction
               icon="analytics"
@@ -381,7 +381,7 @@ const DashboardScreen = ({ navigation }) => {
                 <Text style={styles.statLabel}>Total Workouts</Text>
               </LinearGradient>
             </Card>
-            
+
             <Card style={styles.statCard}>
               <LinearGradient
                 colors={['rgba(99, 102, 241, 0.1)', 'rgba(99, 102, 241, 0.05)']}
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     textTransform: 'uppercase',
-    textAlign: 'center', 
+    textAlign: 'center',
   },
   upcomingCard: {
     marginHorizontal: spacing.xl,

@@ -25,7 +25,7 @@ const muscleGroups = [
     icon: '🎯',
     description: 'Pectorals, front delts',
     color: colors.primary,
-    target: 'Pectorals',  // ExerciseDB body part
+    target: 'chest',
   },
   {
     id: 'back',
@@ -33,15 +33,15 @@ const muscleGroups = [
     icon: '🔙',
     description: 'Lats, rhomboids, traps',
     color: colors.secondary,
-    target: 'Back',  // ExerciseDB body part
+    target: 'back',
   },
   {
     id: 'shoulders',
     name: 'Shoulders',
-    icon: '🎪',
+    icon: '💪🏽',
     description: 'Deltoids, rotator cuff',
     color: colors.accent,
-    target: 'Shoulders',  // ExerciseDB body part
+    target: 'shoulders',
   },
   {
     id: 'arms',
@@ -49,7 +49,7 @@ const muscleGroups = [
     icon: '💪',
     description: 'Biceps, triceps',
     color: colors.info,
-    target: 'Biceps, Triceps',  // ExerciseDB body part
+    target: 'upper arms, lower arms',
   },
   {
     id: 'legs',
@@ -57,7 +57,7 @@ const muscleGroups = [
     icon: '🦵',
     description: 'Quads, hamstrings, glutes',
     color: colors.premium,
-    target: 'Legs',  // ExerciseDB body part
+    target: 'upper legs, lower legs',
   },
   {
     id: 'core',
@@ -65,7 +65,7 @@ const muscleGroups = [
     icon: '🎯',
     description: 'Abs, obliques',
     color: colors.warning,
-    target: 'Abs',  // ExerciseDB body part
+    target: 'waist',
   },
   {
     id: 'full_body',
@@ -73,7 +73,7 @@ const muscleGroups = [
     icon: '🏃',
     description: 'Multiple muscle groups',
     color: colors.success,
-    target: 'Full Body',  // ExerciseDB body part
+    target: 'chest, back, shoulders, upper arms, lower arms, upper legs, lower legs, waist',
   },
   {
     id: 'cardio',
@@ -81,7 +81,7 @@ const muscleGroups = [
     icon: '❤️',
     description: 'Heart rate training',
     color: colors.error,
-    target: 'Cardio',  // ExerciseDB body part (optional)
+    target: 'cardio',
   },
 ];
 
