@@ -77,16 +77,16 @@ const PersonalRecordsScreen = ({ navigation }) => {
   const filterRecords = () => {
     let filtered = Object.entries(personalRecords);
 
-    // Filter by search query
+    // Filter by search query - now properly handling exercise names
     if (searchQuery) {
-      filtered = filtered.filter(([exerciseId]) =>
-        exerciseId.toLowerCase().replace(/_/g, ' ').includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(([exerciseName]) =>
+        exerciseName.toLowerCase().replace(/_/g, ' ').includes(searchQuery.toLowerCase())
       );
     }
 
-    // Filter by category using the bodypart data that's now included in PR records
+    // Filter by category using the bodypart data from PR records
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(([exerciseId, record]) => {
+      filtered = filtered.filter(([exerciseName, record]) => {
         // Use the bodypart data from the PR record (now included from AppContext)
         if (record.bodypart) {
           const mainCategory = getMainCategory(record.bodypart);
@@ -94,14 +94,20 @@ const PersonalRecordsScreen = ({ navigation }) => {
         }
 
         // Fallback to name-based filtering if no bodypart data
-        return getMainCategoryFromName(exerciseId) === selectedCategory;
+        return getMainCategoryFromName(exerciseName) === selectedCategory;
       });
     }
 
-    // Sort by volume/weight (highest first)
+    // Sort by volume/weight (highest first) - use the volume field from context
     filtered.sort((a, b) => {
-      const volumeA = a[1].volume || (a[1].weight * a[1].reps) || 0;
-      const volumeB = b[1].volume || (b[1].weight * b[1].reps) || 0;
+      const volumeA = a[1].volume || 0;
+      const volumeB = b[1].volume || 0;
+      
+      // For bodyweight exercises, sort by reps instead
+      if (volumeA === 0 && volumeB === 0) {
+        return b[1].reps - a[1].reps;
+      }
+      
       return volumeB - volumeA;
     });
 
@@ -144,22 +150,22 @@ const PersonalRecordsScreen = ({ navigation }) => {
     return null;
   };
 
-  const formatExerciseName = (exerciseId) => {
-    return exerciseId
+  const formatExerciseName = (exerciseName) => {
+    return exerciseName
       .replace(/_/g, ' ')
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
 
-  const getExerciseIcon = (exerciseId, record) => {
+  const getExerciseIcon = (exerciseName, record) => {
     let category;
 
     // Use bodypart from the record if available
     if (record.bodypart) {
       category = getMainCategory(record.bodypart);
     } else {
-      category = getMainCategoryFromName(exerciseId);
+      category = getMainCategoryFromName(exerciseName);
     }
 
     const iconMap = {
@@ -183,11 +189,21 @@ const PersonalRecordsScreen = ({ navigation }) => {
     return `${target} • ${equipment}`;
   };
 
-  const formatRepsDisplay = (exerciseId, reps) => {
-    if (exerciseId.toLowerCase().includes('plank') && reps > 30) {
+  const formatRepsDisplay = (exerciseName, reps) => {
+    if (exerciseName.toLowerCase().includes('plank') && reps > 30) {
       return `${reps} sec`;
     }
     return `${reps} reps`;
+  };
+
+  // Helper function to safely format date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown date';
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (error) {
+      return 'Unknown date';
+    }
   };
 
   const PRDetailModal = () => {
@@ -223,25 +239,33 @@ const PersonalRecordsScreen = ({ navigation }) => {
               <View style={styles.prDetailRow}>
                 <Text style={styles.prDetailLabel}>Reps</Text>
                 <Text style={styles.prDetailValue}>
-                  {formatRepsDisplay(selectedPR.exerciseId, selectedPR.reps)}
+                  {formatRepsDisplay(selectedPR.exerciseName, selectedPR.reps)}
                 </Text>
               </View>
               <View style={styles.prDetailRow}>
                 <Text style={styles.prDetailLabel}>Total Volume</Text>
                 <Text style={styles.prDetailValue}>
-                  {selectedPR.weight > 0 ? `${selectedPR.volume || (selectedPR.weight * selectedPR.reps)} lbs` : 'N/A'}
+                  {selectedPR.weight > 0 ? `${selectedPR.volume} lbs` : 'N/A'}
                 </Text>
               </View>
               <View style={styles.prDetailRow}>
                 <Text style={styles.prDetailLabel}>Date Set</Text>
                 <Text style={styles.prDetailValue}>
-                  {new Date(selectedPR.date || Date.now()).toLocaleDateString()}
+                  {formatDate(selectedPR.date)}
                 </Text>
               </View>
               <View style={styles.prDetailRow}>
                 <Text style={styles.prDetailLabel}>Muscle & Equipment</Text>
                 <Text style={styles.prDetailValue}>{selectedPR.targetInfo}</Text>
               </View>
+              {selectedPR.isPR && (
+                <View style={styles.prDetailRow}>
+                  <Text style={styles.prDetailLabel}>Status</Text>
+                  <Text style={[styles.prDetailValue, { color: colors.primary }]}>
+                    🏆 Personal Record
+                  </Text>
+                </View>
+              )}
             </View>
 
             <TouchableOpacity style={styles.closeButton} onPress={() => setShowDetailModal(false)}>
@@ -261,14 +285,14 @@ const PersonalRecordsScreen = ({ navigation }) => {
 
     const availableCats = new Set(['all']);
 
-    Object.entries(personalRecords).forEach(([exerciseId, record]) => {
+    Object.entries(personalRecords).forEach(([exerciseName, record]) => {
       let category;
 
       // Use bodypart from the record if available
       if (record.bodypart) {
         category = getMainCategory(record.bodypart);
       } else {
-        category = getMainCategoryFromName(exerciseId);
+        category = getMainCategoryFromName(exerciseName);
       }
 
       if (category) {
@@ -389,15 +413,14 @@ const PersonalRecordsScreen = ({ navigation }) => {
             <View style={styles.recordsSection}>
               {filteredRecords.length > 0 ? (
                 <View style={styles.recordsList}>
-                  {filteredRecords.map(([exerciseId, record], index) => (
+                  {filteredRecords.map(([exerciseName, record], index) => (
                     <TouchableOpacity
-                      key={exerciseId}
+                      key={exerciseName}
                       style={[styles.recordCard, index === 0 && styles.topRecord]}
                       onPress={() => {
                         setSelectedPR({
                           ...record,
-                          exerciseName: formatExerciseName(exerciseId),
-                          exerciseId: exerciseId,
+                          exerciseName: formatExerciseName(exerciseName),
                           targetInfo: getExerciseTargetInfo(record)
                         });
                         setShowDetailModal(true);
@@ -405,7 +428,7 @@ const PersonalRecordsScreen = ({ navigation }) => {
                     >
                       <View style={styles.recordIconContainer}>
                         <Ionicons
-                          name={getExerciseIcon(exerciseId, record)}
+                          name={getExerciseIcon(exerciseName, record)}
                           size={24}
                           color={colors.primary}
                         />
@@ -413,14 +436,14 @@ const PersonalRecordsScreen = ({ navigation }) => {
 
                       <View style={styles.recordInfo}>
                         <Text style={styles.recordExercise} numberOfLines={1}>
-                          {formatExerciseName(exerciseId)}
+                          {formatExerciseName(exerciseName)}
                         </Text>
                         <Text style={styles.recordDetails}>
                           {record.weight > 0 ? `${record.weight} lbs × ` : ''}
-                          {formatRepsDisplay(exerciseId, record.reps)}
+                          {formatRepsDisplay(exerciseName, record.reps)}
                         </Text>
                         <Text style={styles.recordDate}>
-                          {new Date(record.date || Date.now()).toLocaleDateString()}
+                          {formatDate(record.date)}
                         </Text>
                       </View>
 
@@ -428,7 +451,7 @@ const PersonalRecordsScreen = ({ navigation }) => {
                         {record.weight > 0 ? (
                           <>
                             <Text style={styles.recordVolume}>
-                              {record.volume || (record.weight * record.reps)}
+                              {record.volume}
                             </Text>
                             <Text style={styles.recordVolumeLabel}>lbs</Text>
                           </>
@@ -438,7 +461,7 @@ const PersonalRecordsScreen = ({ navigation }) => {
                               {record.reps}
                             </Text>
                             <Text style={styles.recordVolumeLabel}>
-                              {exerciseId.includes('plank') ? 'sec' : 'reps'}
+                              {exerciseName.includes('plank') ? 'sec' : 'reps'}
                             </Text>
                           </>
                         )}
