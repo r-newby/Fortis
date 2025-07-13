@@ -20,7 +20,7 @@ import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 import { useApp } from '../../context/AppContext';
 import { ProgressChart } from 'react-native-chart-kit';
-import { useFocusEffect } from '@react-navigation/native'; // Add this import
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -80,7 +80,6 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   const calculateStats = () => {
-    // Calculate weekly workouts
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
@@ -88,46 +87,59 @@ const DashboardScreen = ({ navigation }) => {
       new Date(w.date) >= oneWeekAgo
     );
 
-    console.log('All workouts from context:', workouts);
-    console.log('Filtered weekly workouts:', weeklyWorkouts);
-    console.log('Weekly completion values:', weeklyWorkouts.map(w => w.completion_percentage));
-
-    // Calculate streak
-    let streak = 0;
-    const today = new Date();
-    const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    // Calculate enhanced stats
     const weeklyAverageIntensity = weeklyWorkouts.reduce((sum, w) =>
       sum + (w.average_intensity || 3), 0) / (weeklyWorkouts.length || 1);
 
     const weeklyCompletionRate = weeklyWorkouts.reduce((sum, w) =>
       sum + (w.completion_percentage ?? 0), 0) / (weeklyWorkouts.length || 1);
 
-    for (let i = 0; i < sortedWorkouts.length; i++) {
-      const workoutDate = new Date(sortedWorkouts[i].date);
-      const daysDiff = Math.floor((today - workoutDate) / (1000 * 60 * 60 * 24));
-
-      if (daysDiff === i) {
-        streak++;
-      } else {
-        break;
+    const calculateCurrentStreak = () => {
+      if (workouts.length === 0) return 0;
+      
+      const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
+      let currentStreak = 0;
+      let checkDate = new Date();
+      checkDate.setHours(0, 0, 0, 0);
+      
+      const todayWorkout = workouts.some(w => {
+        const workoutDate = new Date(w.date);
+        workoutDate.setHours(0, 0, 0, 0);
+        return workoutDate.getTime() === checkDate.getTime();
+      });
+      
+      // Start from yesterday if no workout today
+      if (!todayWorkout) {
+        checkDate.setDate(checkDate.getDate() - 1);
       }
-    }
+      
+      for (const workout of sortedWorkouts) {
+        const workoutDate = new Date(workout.date);
+        workoutDate.setHours(0, 0, 0, 0);
+        
+        if (workoutDate.getTime() === checkDate.getTime()) {
+          currentStreak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else if (workoutDate.getTime() < checkDate.getTime()) {
+          break; // Gap found
+        }
+      }
+      
+      return currentStreak;
+    };
 
-    // Check if worked out today
+    const streak = calculateCurrentStreak();
+
+    const today = new Date();
     const todayWorkout = workouts.some(w => {
       const workoutDate = new Date(w.date);
       return workoutDate.toDateString() === today.toDateString();
     });
 
-    // Calculate total volume for the week
     const weeklyVolume = weeklyWorkouts.reduce((sum, w) => {
-      // Use total_volume if available (from database), otherwise calculate from totalVolume
       return sum + (w.total_volume || w.totalVolume || 0);
     }, 0);
 
-    // Get last workout
+    const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
     const lastWorkout = sortedWorkouts[0] || null;
 
     setStats({
@@ -349,7 +361,6 @@ const DashboardScreen = ({ navigation }) => {
               icon="trophy"
               title="Personal Records"
               color={colors.warning}
-
               onPress={() => navigation.navigate('PersonalRecords')}
             />
             <QuickAction
@@ -421,7 +432,6 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Upcoming Workout Suggestion */}
         <UpcomingWorkout />
 
       </ScrollView>

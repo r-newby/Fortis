@@ -9,34 +9,16 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Card from '../../components/common/Card';
-import GradientButton from '../../components/common/GradientButton';
 import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 import { useApp } from '../../context/AppContext';
-import { generateWorkout } from '../../utils/generateWorkout';
-import { useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const WorkoutsScreen = ({ navigation }) => {
   const { userProfile, workouts } = useApp();
-  useEffect(() => {
-    const debugStorage = async () => {
-      try {
-        const keys = await AsyncStorage.getAllKeys();
-        console.log('AsyncStorage keys:', keys);
 
-        const userKey = `workouts_${userProfile?.id}`;
-        const data = await AsyncStorage.getItem(userKey);
-        console.log(`Workouts for ${userKey}:`, JSON.parse(data));
-      } catch (error) {
-        console.error('Error reading AsyncStorage:', error);
-      }
-    };
-
-    debugStorage();
-  }, [userProfile]);
   const startCustomWorkout = () => {
     navigation.navigate('ExerciseLogging');
   };
@@ -44,7 +26,6 @@ const WorkoutsScreen = ({ navigation }) => {
   const startGenerateWorkout = () => {
     navigation.navigate('EquipmentSelection');
   };
-
 
   const quickStartOptions = [
     {
@@ -78,7 +59,6 @@ const WorkoutsScreen = ({ navigation }) => {
   ];
 
   const handleQuickStart = (muscleGroup) => {
-    // Navigate directly to equipment selection with pre-selected muscle group
     navigation.navigate('EquipmentSelection', { preselectedMuscleGroup: muscleGroup });
   };
 
@@ -88,30 +68,54 @@ const WorkoutsScreen = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Workouts</Text>
           <Text style={styles.subtitle}>Choose your training focus</Text>
         </View>
 
-        {/* Start Workout Button */}
-        <View style={styles.buttonContainer}>
-          <GradientButton
-            title="Start Custom Workout"
-            onPress={startCustomWorkout}
-          />
-        </View>
-
-        {/* Generatee Workout Button */}
-        <View style={styles.buttonContainer}>
-          <GradientButton
-            title="Generate Workout"
+        <View style={styles.mainButtons}>
+          <TouchableOpacity
+            style={styles.smartPlanButton}
             onPress={startGenerateWorkout}
-          />
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={colors.gradientPrimary}
+              style={styles.smartPlanGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.smartPlanContent}>
+                <View style={styles.smartPlanIconContainer}>
+                  <Ionicons name="sparkles" size={24} color="#FFFFFF" />
+                </View>
+                <View style={styles.smartPlanText}>
+                  <Text style={styles.smartPlanTitle}>Your Smart Plan</Text>
+                  <Text style={styles.smartPlanSubtitle}>Tailored to your goals</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.buildWorkoutButton}
+            onPress={startCustomWorkout}
+            activeOpacity={0.8}
+          >
+            <View style={styles.buildWorkoutContent}>
+              <View style={styles.buildWorkoutIconContainer}>
+                <Ionicons name="construct" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.buildWorkoutText}>
+                <Text style={styles.buildWorkoutTitle}>Build Your Workout</Text>
+                <Text style={styles.buildWorkoutSubtitle}>Create from scratch</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+            </View>
+          </TouchableOpacity>
         </View>
 
-        {/* Quick Start Options */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Start</Text>
           <View style={styles.quickStartGrid}>
@@ -126,7 +130,7 @@ const WorkoutsScreen = ({ navigation }) => {
                   <View
                     style={[
                       styles.quickStartIcon,
-                      { backgroundColor: `${option.color}20` },
+                      { backgroundColor: option.color + '20' },
                     ]}
                   >
                     <Ionicons
@@ -142,13 +146,10 @@ const WorkoutsScreen = ({ navigation }) => {
           </View>
         </View>
 
-
-        {/* Recent Workouts */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Workouts</Text>
           {workouts.length > 0 ? (
             workouts.slice(0, 3).map((workout, index) => {
-              // Calculate volume if not present or format properly
               const volume = workout.total_volume || workout.totalVolume || 0;
               const formattedVolume = volume > 0 ?
                 (volume >= 1000 ? `${(volume / 1000).toFixed(1)}k` : volume.toString()) :
@@ -186,7 +187,6 @@ const WorkoutsScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* Suggested Workout */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Auto-Generated Workouts</Text>
           <Card style={styles.suggestedCard}>
@@ -237,9 +237,89 @@ const styles = StyleSheet.create({
     ...typography.bodyLarge,
     color: colors.textSecondary,
   },
-  buttonContainer: {
+  mainButtons: {
     paddingHorizontal: spacing.xl,
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.xxl,
+    gap: spacing.lg,
+  },
+  buildWorkoutButton: {
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+  },
+  buildWorkoutContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  buildWorkoutIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  buildWorkoutText: {
+    flex: 1,
+  },
+  buildWorkoutTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  buildWorkoutSubtitle: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  smartPlanButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  smartPlanGradient: {
+    padding: spacing.lg,
+  },
+  smartPlanContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  smartPlanIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  smartPlanText: {
+    flex: 1,
+  },
+  smartPlanTitle: {
+    ...typography.h3,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  smartPlanSubtitle: {
+    ...typography.caption,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   section: {
     marginBottom: spacing.xxxl,
@@ -332,7 +412,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: `${colors.primary}20`,
+    backgroundColor: colors.primary + '20',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.lg,
