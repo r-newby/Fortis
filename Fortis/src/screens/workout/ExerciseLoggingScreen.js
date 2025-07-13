@@ -228,8 +228,16 @@ const ExerciseLoggingScreen = ({ navigation }) => {
         sets,
         reps: avgReps,
         weight: avgWeight,
+        actual_reps: avgReps,
+        actual_weight: avgWeight,
       });
     }
+
+    console.log('All exercises saved with actual values for PR calculation');
+    console.log('Navigating to WorkoutSummary with:', finished);
+  
+  // Reload app data to recalculate PRs
+    await reloadData();
     console.log('Navigating to WorkoutSummary with:', finished);
     setSearchQuery('');
     setSearchResults([]);
