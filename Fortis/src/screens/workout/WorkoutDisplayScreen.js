@@ -210,7 +210,7 @@ const WorkoutDisplayScreen = ({ navigation, route }) => {
     const exercise = workoutExercises[currentExercise];
     let suggestion = null;
 
-    // Simple progression logic - you can enhance this
+    // Simple progression logic
     if (intensity <= 2) {
       suggestion = {
         type: 'progression',
