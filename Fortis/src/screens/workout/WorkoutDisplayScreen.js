@@ -226,7 +226,7 @@ const handleProgressionDecision = async (accepted) => {
 };
 
 
-const checkProgressionSuggestion = async (intensity) => {
+/*const checkProgressionSuggestion = async (intensity) => {
   const exercise = workoutExercises[currentExercise];
   const current = {
     reps: currentReps,
@@ -301,7 +301,7 @@ const checkProgressionSuggestion = async (intensity) => {
     setProgressionSuggestion(suggestion);
     setShowProgressionModal(true);
   }
-};
+};*/
 
 
   const skipRest = () => {
