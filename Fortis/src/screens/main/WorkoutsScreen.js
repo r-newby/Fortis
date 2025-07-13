@@ -59,7 +59,114 @@ const WorkoutsScreen = ({ navigation }) => {
   ];
 
   const handleQuickStart = (muscleGroup) => {
-    navigation.navigate('EquipmentSelection', { preselectedMuscleGroup: muscleGroup });
+    navigation.navigate('EquipmentSelection', { 
+      preselectedMuscleGroup: muscleGroup,
+      skipMuscleSelection: true 
+    });
+  };
+
+  // Suggestion logic - recommend muscle group based on profile and recent training
+  const getSuggestedWorkout = () => {
+    const { fitnessLevel, goal } = userProfile || {};
+    
+    const muscleGroups = [
+      { name: 'chest', display: 'Chest', icon: '💪', color: colors.primary },
+      { name: 'back', display: 'Back', icon: '🔙', color: colors.secondary },
+      { name: 'legs', display: 'Legs', icon: '🦵', color: colors.accent },
+      { name: 'shoulders', display: 'Shoulders', icon: '🤝', color: colors.warning },
+      { name: 'arms', display: 'Arms', icon: '💪', color: colors.info },
+      { name: 'core', display: 'Core', icon: '🎯', color: colors.warning },
+      { name: 'full_body', display: 'Full Body', icon: '🏋️', color: colors.info },
+      { name: 'cardio', display: 'Cardio', icon: '❤️', color: colors.error },
+    ];
+
+    // For users with no workout history, suggest full body to get started
+    if (workouts.length === 0) {
+      return muscleGroups.find(m => m.name === 'full_body');
+    }
+
+    // Goal-based prioritization
+    let prioritizedGroups = muscleGroups;
+    if (goal === 'strength') {
+      // Strength goals: focus on major compound movements
+      prioritizedGroups = muscleGroups.filter(m => 
+        ['legs', 'back', 'chest', 'shoulders'].includes(m.name)
+      );
+    } else if (goal === 'muscle') {
+      // Muscle building: balanced approach with all muscle groups
+      prioritizedGroups = muscleGroups.filter(m => 
+        ['chest', 'back', 'legs', 'shoulders', 'arms', 'core'].includes(m.name)
+      );
+    } else if (goal === 'endurance') {
+      // Endurance goals: favor full body and cardio
+      prioritizedGroups = muscleGroups.filter(m => 
+        ['full_body', 'legs', 'cardio', 'core'].includes(m.name)
+      );
+    }
+    // For users without a goal set, use all muscle groups
+
+    // Beginners get slightly more full body suggestions within their goal
+    if (fitnessLevel === 'beginner' && workouts.length < 10) {
+      // Add full body to prioritized groups if it's not already there
+      const hasFullBody = prioritizedGroups.some(m => m.name === 'full_body');
+      if (!hasFullBody) {
+        prioritizedGroups.push(muscleGroups.find(m => m.name === 'full_body'));
+      }
+    }
+
+    const now = new Date();
+    
+    // Calculate days since last workout for prioritized muscle groups
+    const muscleGroupData = prioritizedGroups.map(muscle => {
+      const lastWorkout = workouts
+        .filter(w => w.muscle_group === muscle.name)
+        .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+      
+      const daysSince = lastWorkout 
+        ? Math.floor((now - new Date(lastWorkout.date)) / (1000 * 60 * 60 * 24))
+        : 999; // Never trained
+      
+      return { ...muscle, daysSince, lastWorkout };
+    });
+    
+    // Return muscle group with most days since last workout
+    return muscleGroupData.sort((a, b) => b.daysSince - a.daysSince)[0];
+  };
+
+  // Suggested workout component
+  const SuggestedWorkout = () => {
+    const suggestion = getSuggestedWorkout();
+    
+    if (!suggestion) return null;
+
+    const getDaysMessage = () => {
+      if (suggestion.daysSince === 999) return 'Never trained';
+      if (suggestion.daysSince === 0) return 'Last done today';
+      if (suggestion.daysSince === 1) return 'Last done yesterday';
+      return `Last done ${suggestion.daysSince} days ago`;
+    };
+
+    return (
+      <Card style={styles.suggestedCard}>
+        <TouchableOpacity
+          style={styles.suggestedContent}
+          onPress={() => handleQuickStart(suggestion.name)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.suggestedIconContainer}>
+            <Text style={styles.suggestedEmoji}>{suggestion.icon}</Text>
+          </View>
+          <View style={styles.suggestedText}>
+            <Text style={styles.suggestedMuscle}>{suggestion.display} Day</Text>
+            <Text style={styles.suggestedTime}>{getDaysMessage()}</Text>
+        
+          </View>
+          <View style={styles.suggestedStats}>
+            <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+          </View>
+        </TouchableOpacity>
+      </Card>
+    );
   };
 
   return (
@@ -116,7 +223,7 @@ const WorkoutsScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
+        <View style={styles.quickStartSection}>
           <Text style={styles.sectionTitle}>Quick Start</Text>
           <View style={styles.quickStartGrid}>
             {quickStartOptions.map((option) => (
@@ -135,7 +242,7 @@ const WorkoutsScreen = ({ navigation }) => {
                   >
                     <Ionicons
                       name={option.icon}
-                      size={28}
+                      size={40}
                       color={option.color}
                     />
                   </View>
@@ -144,6 +251,12 @@ const WorkoutsScreen = ({ navigation }) => {
               </TouchableOpacity>
             ))}
           </View>
+        </View>
+
+        {/* Suggested Workout Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Suggested Next Workout</Text>
+          <SuggestedWorkout />
         </View>
 
         <View style={styles.section}>
@@ -157,8 +270,11 @@ const WorkoutsScreen = ({ navigation }) => {
 
               return (
                 <Card key={workout.id} style={styles.recentWorkoutCard}>
-                  <View style={styles.workoutHeader}>
-                    <View>
+                  <View style={styles.recentWorkoutContent}>
+                    <View style={styles.recentWorkoutIconContainer}>
+                      <Ionicons name="fitness" size={24} color={colors.primary} />
+                    </View>
+                    <View style={styles.recentWorkoutText}>
                       <Text style={styles.workoutTitle}>
                         {workout.muscle_group
                           ? workout.muscle_group.charAt(0).toUpperCase() +
@@ -185,30 +301,6 @@ const WorkoutsScreen = ({ navigation }) => {
               </Text>
             </Card>
           )}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Auto-Generated Workouts</Text>
-          <Card style={styles.suggestedCard}>
-            <View style={styles.suggestedContent}>
-              <View style={styles.suggestedIcon}>
-                <Ionicons name="trending-up" size={32} color={colors.primary} />
-              </View>
-              <View style={styles.suggestedTextContainer}>
-                <Text style={styles.suggestedTitle}>Progressive Overload</Text>
-                <Text style={styles.suggestedText}>
-                  Based on your {userProfile?.goal || 'strength'} goal
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={styles.suggestedButton}
-              onPress={startCustomWorkout}
-            >
-              <Text style={styles.suggestedButtonText}>Try Now</Text>
-              <Ionicons name="arrow-forward" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </Card>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -239,7 +331,7 @@ const styles = StyleSheet.create({
   },
   mainButtons: {
     paddingHorizontal: spacing.xl,
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.lg,
     gap: spacing.lg,
   },
   buildWorkoutButton: {
@@ -321,11 +413,14 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  quickStartSection: {
+    marginBottom: spacing.xs,
+  },
   section: {
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.xs,
   },
   sectionTitle: {
-    ...typography.h2,
+     ...typography.h3,
     color: colors.textPrimary,
     marginHorizontal: spacing.xl,
     marginBottom: spacing.lg,
@@ -333,19 +428,20 @@ const styles = StyleSheet.create({
   quickStartGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+    justifyContent: 'space-between'
   },
   quickStartItem: {
-    width: '47%',
+    width: '48%',
   },
   quickStartCard: {
     alignItems: 'center',
     paddingVertical: spacing.xxl,
+    marginBottom: spacing.md,
   },
   quickStartIcon: {
-    width: 60,
-    height: 60,
+    width: 70,
+    height: 70,
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
@@ -356,14 +452,80 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '600',
   },
+  // Suggested workout styles
+  suggestedCard: {
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.md,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  suggestedContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.xs,
+  },
+  suggestedIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  suggestedEmoji: {
+    fontSize: 24,
+  },
+  suggestedText: {
+    flex: 1,
+  },
+  suggestedMuscle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  suggestedTime: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+  },
+  suggestedUrgent: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: spacing.xs,
+  },
+  suggestedStats: {
+    alignItems: 'center',
+  },
+  // Recent workout styles
   recentWorkoutCard: {
     marginHorizontal: spacing.xl,
     marginBottom: spacing.md,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
   },
-  workoutHeader: {
+  recentWorkoutContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    padding: spacing.xs,
+  },
+  recentWorkoutIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  recentWorkoutText: {
+    flex: 1,
   },
   workoutTitle: {
     ...typography.h3,
@@ -399,45 +561,6 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.textSecondary,
     textAlign: 'center',
-  },
-  suggestedCard: {
-    marginHorizontal: spacing.xl,
-  },
-  suggestedContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  suggestedIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary + '20',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.lg,
-  },
-  suggestedTextContainer: {
-    flex: 1,
-  },
-  suggestedTitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  suggestedText: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-  },
-  suggestedButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  suggestedButtonText: {
-    ...typography.button,
-    color: colors.primary,
   },
 });
 

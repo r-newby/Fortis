@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   Dimensions,
   Share,
-  Alert,
   Modal,
 } from 'react-native';
 import { LineChart, BarChart } from 'react-native-chart-kit';
@@ -23,16 +22,14 @@ import { useApp } from '../../context/AppContext';
 
 const { width } = Dimensions.get('window');
 
-const ProgressScreen = () => {
+const ProgressScreen = ({ navigation }) => {
   const { personalRecords, workouts, userProfile } = useApp();
   
-  // State for time period selection
+  // Component state
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [selectedMetric, setSelectedMetric] = useState('workouts');
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedPR, setSelectedPR] = useState(null);
-  const [showScrollIndicator, setShowScrollIndicator] = useState(true);
-  
   const [stats, setStats] = useState({
     totalWorkouts: 0,
     totalVolume: 0,
@@ -45,6 +42,7 @@ const ProgressScreen = () => {
     completionRate: 0,
   });
 
+  // Time period options for filtering
   const timePeriods = [
     { id: 'week', label: 'Last 7 Days', days: 7 },
     { id: 'month', label: 'Last 30 Days', days: 30 },
@@ -53,12 +51,14 @@ const ProgressScreen = () => {
     { id: 'year', label: 'Last Year', days: 365 },
   ];
 
+  // Metric options for chart display
   const metrics = [
     { id: 'workouts', label: 'Workouts', icon: 'calendar', unit: 'count' },
     { id: 'volume', label: 'Volume', icon: 'barbell', unit: 'lbs' },
     { id: 'intensity', label: 'Intensity', icon: 'trending-up', unit: '/5' },
   ];
 
+  // Recalculate stats when dependencies change
   useEffect(() => {
     calculateStats();
   }, [workouts, selectedPeriod, selectedMetric]);
@@ -71,12 +71,6 @@ const ProgressScreen = () => {
     const filteredWorkouts = workouts.filter(w => 
       new Date(w.date) >= cutoffDate
     );
-
-    console.log('Progress Screen Debug:');
-    console.log('Selected period:', selectedPeriod, 'days:', periodDays);
-    console.log('Total workouts:', workouts.length);
-    console.log('Filtered workouts:', filteredWorkouts.length);
-    console.log('Workout dates:', workouts.map(w => ({ date: w.date, volume: w.total_volume || w.totalVolume })));
 
     if (filteredWorkouts.length === 0) {
       setStats({
@@ -93,35 +87,33 @@ const ProgressScreen = () => {
       return;
     }
 
-    // Calculate total volume - use existing data structure
+    // Calculate volume and time metrics
     const totalVolume = filteredWorkouts.reduce((sum, workout) => {
       return sum + (workout.total_volume || workout.totalVolume || 0);
     }, 0);
 
-    // Calculate average workout time (duration)
     const totalTime = filteredWorkouts.reduce((sum, workout) => {
       return sum + (workout.duration || 0);
     }, 0);
     const avgTime = Math.round(totalTime / filteredWorkouts.length / 60);
 
-    // Calculate muscle group distribution - use muscle_group field
+    // Build muscle group distribution
     const muscleGroupCount = {};
     filteredWorkouts.forEach(workout => {
       const group = workout.muscle_group || 'other';
       muscleGroupCount[group] = (muscleGroupCount[group] || 0) + 1;
     });
 
-    // Calculate average intensity
+    // Calculate performance metrics
     const avgIntensity = filteredWorkouts.reduce((sum, workout) => {
       return sum + (workout.intensity || 3);
     }, 0) / filteredWorkouts.length;
 
-    // Calculate completion rate
     const completionRate = filteredWorkouts.reduce((sum, workout) => {
       return sum + (workout.completion_percentage || 100);
     }, 0) / filteredWorkouts.length;
 
-    // Calculate progress vs previous period
+    // Compare with previous period for progress tracking
     const previousPeriodWorkouts = workouts.filter(w => {
       const workoutDate = new Date(w.date);
       const previousCutoff = new Date(cutoffDate);
@@ -135,7 +127,6 @@ const ProgressScreen = () => {
       ? Math.round(((totalVolume - previousVolume) / previousVolume) * 100)
       : 0;
 
-    // Calculate streak
     const streak = calculateWorkoutStreak();
 
     setStats({
@@ -151,6 +142,7 @@ const ProgressScreen = () => {
     });
   };
 
+  // Calculate consecutive workout days
   const calculateWorkoutStreak = () => {
     if (workouts.length === 0) return 0;
     
@@ -159,7 +151,6 @@ const ProgressScreen = () => {
     let checkDate = new Date();
     checkDate.setHours(0, 0, 0, 0);
     
-    // Check if there's a workout today, if not start from yesterday
     const todayWorkout = workouts.some(w => {
       const workoutDate = new Date(w.date);
       return workoutDate.toDateString() === new Date().toDateString();
@@ -184,6 +175,7 @@ const ProgressScreen = () => {
     return streak;
   };
 
+  // Find most frequently trained muscle group
   const getFavoriteExercise = (muscleGroupCount) => {
     const muscleGroups = Object.entries(muscleGroupCount);
     if (muscleGroups.length === 0) return 'None yet';
@@ -192,26 +184,19 @@ const ProgressScreen = () => {
     return favorite[0].charAt(0).toUpperCase() + favorite[0].slice(1);
   };
 
+  // Generate achievement badges based on user milestones
   const calculateAchievements = () => {
     const achievements = [];
     const now = new Date();
     
-    // Get workouts for different time periods
     const weeklyWorkouts = workouts.filter(w => {
       const workoutDate = new Date(w.date);
       const weekAgo = new Date(now);
       weekAgo.setDate(weekAgo.getDate() - 7);
       return workoutDate >= weekAgo;
     });
-    
-    const monthlyWorkouts = workouts.filter(w => {
-      const workoutDate = new Date(w.date);
-      const monthAgo = new Date(now);
-      monthAgo.setDate(monthAgo.getDate() - 30);
-      return workoutDate >= monthAgo;
-    });
 
-    // 1. Current Streak - Always show
+    // Current streak achievement
     achievements.push({
       icon: 'flame',
       title: `${stats.streak} Day Streak`,
@@ -219,7 +204,7 @@ const ProgressScreen = () => {
       color: colors.warning
     });
 
-    // 2. Getting Started - First workout milestone
+    // Workout milestone achievements
     if (workouts.length >= 1) {
       if (workouts.length >= 100) {
         achievements.push({
@@ -266,7 +251,7 @@ const ProgressScreen = () => {
       }
     }
 
-    // 3. Volume achievements - Lower thresholds
+    // Volume-based achievements
     const totalVolumeAllTime = workouts.reduce((sum, w) => 
       sum + (w.total_volume || w.totalVolume || 0), 0);
     
@@ -307,7 +292,7 @@ const ProgressScreen = () => {
       });
     }
 
-    // 4. Weekly achievements - More attainable
+    // Weekly consistency achievements
     if (weeklyWorkouts.length >= 7) {
       achievements.push({
         icon: 'calendar',
@@ -331,7 +316,7 @@ const ProgressScreen = () => {
       });
     }
 
-    // 5. Personal Records
+    // Personal records achievements
     const prCount = Object.keys(personalRecords).length;
     if (prCount >= 20) {
       achievements.push({
@@ -363,7 +348,7 @@ const ProgressScreen = () => {
       });
     }
 
-    // 6. Intensity achievements
+    // Intensity achievements
     const avgIntensity = workouts.length > 0 
       ? workouts.reduce((sum, w) => sum + (w.intensity || 3), 0) / workouts.length 
       : 0;
@@ -391,7 +376,7 @@ const ProgressScreen = () => {
       });
     }
 
-    // 7. Muscle group variety
+    // Muscle group variety achievements
     const uniqueMuscleGroups = new Set(
       workouts.map(w => w.muscle_group).filter(Boolean)
     );
@@ -419,7 +404,7 @@ const ProgressScreen = () => {
       });
     }
 
-    // 8. Progress achievements
+    // Progress achievements
     if (stats.weeklyProgress >= 50) {
       achievements.push({
         icon: 'trending-up',
@@ -443,37 +428,32 @@ const ProgressScreen = () => {
       });
     }
 
-    return achievements.slice(0, 6); // Show max 6 achievements
+    return achievements.slice(0, 6);
   };
 
+  // Prepare chart data based on selected period and metric
   const getChartData = () => {
     const periodDays = timePeriods.find(p => p.id === selectedPeriod).days;
     
-    // Dynamic data points based on period
     let dataPoints, groupBy, labelFormat;
     
     if (periodDays <= 7) {
-      // Last 7 days - show each day
       dataPoints = 7;
       groupBy = 'day';
       labelFormat = (date) => date.getDate().toString();
     } else if (periodDays <= 30) {
-      // Last 30 days - show each week
       dataPoints = 4;
       groupBy = 'week';
       labelFormat = (date, weekNum) => `W${weekNum}`;
     } else if (periodDays <= 90) {
-      // Last 3 months - show each month
       dataPoints = 3;
       groupBy = 'month';
       labelFormat = (date) => date.toLocaleDateString('en', { month: 'short' });
     } else if (periodDays <= 180) {
-      // Last 6 months - show each month
       dataPoints = 6;
       groupBy = 'month';
       labelFormat = (date) => date.toLocaleDateString('en', { month: 'short' });
     } else {
-      // Last year - show each month
       dataPoints = 12;
       groupBy = 'month';
       labelFormat = (date) => date.toLocaleDateString('en', { month: 'short' });
@@ -487,7 +467,6 @@ const ProgressScreen = () => {
       let startDate, endDate, label;
       
       if (groupBy === 'day') {
-        // Each day for the last 7 days
         startDate = new Date(now);
         startDate.setDate(now.getDate() - (dataPoints - 1 - i));
         endDate = new Date(startDate);
@@ -495,15 +474,13 @@ const ProgressScreen = () => {
         startDate.setHours(0, 0, 0, 0);
         label = labelFormat(startDate);
       } else if (groupBy === 'week') {
-        // Each week for the last month (W1 = oldest week, W4 = current week)
         const weeksBack = dataPoints - 1 - i;
         startDate = new Date(now);
-        startDate.setDate(now.getDate() - (weeksBack * 7 + 6)); // Start of week
+        startDate.setDate(now.getDate() - (weeksBack * 7 + 6));
         endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + 6); // End of week
-        label = `W${i + 1}`; // W1 for oldest, W4 for most recent
+        endDate.setDate(startDate.getDate() + 6);
+        label = `W${i + 1}`;
       } else if (groupBy === 'month') {
-        // Each month
         const monthsBack = dataPoints - 1 - i;
         startDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
         endDate = new Date(now.getFullYear(), now.getMonth() - monthsBack + 1, 0);
@@ -511,7 +488,6 @@ const ProgressScreen = () => {
         label = labelFormat(startDate);
       }
       
-      // Filter workouts for this period
       const periodWorkouts = workouts.filter(w => {
         const workoutDate = new Date(w.date);
         return workoutDate >= startDate && workoutDate <= endDate;
@@ -546,6 +522,7 @@ const ProgressScreen = () => {
     };
   };
 
+  // Prepare muscle group distribution chart data
   const getMuscleGroupChartData = () => {
     const groups = Object.entries(stats.muscleGroupDistribution);
     if (groups.length === 0) {
@@ -555,7 +532,6 @@ const ProgressScreen = () => {
       };
     }
 
-    // Sort by count and take top 5
     const topGroups = groups
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
@@ -570,6 +546,7 @@ const ProgressScreen = () => {
     };
   };
 
+  // Format large numbers for display
   const formatVolume = (volume) => {
     if (volume >= 1000000) {
       return `${(volume / 1000000).toFixed(1)}M`;
@@ -580,26 +557,7 @@ const ProgressScreen = () => {
     return volume.toString();
   };
 
-  const handleShare = async () => {
-    try {
-      const message = `🎯 FORTIS Progress Update\n\n` +
-        `📊 ${timePeriods.find(p => p.id === selectedPeriod)?.label} Stats:\n` +
-        `💪 Workouts: ${stats.totalWorkouts}\n` +
-        `📈 Total Volume: ${formatVolume(stats.totalVolume)} lbs\n` +
-        `🔥 Streak: ${stats.streak} days\n` +
-        `⚡ Avg Intensity: ${stats.avgIntensity}/5\n` +
-        `🏆 Progress: ${stats.weeklyProgress > 0 ? '+' : ''}${stats.weeklyProgress}%\n\n` +
-        `Keep pushing forward! 💪`;
-
-      await Share.share({
-        message,
-        title: 'My Fitness Progress',
-      });
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
-  };
-
+  // Modal component for PR details
   const PRDetailModal = () => {
     if (!selectedPR) return null;
 
@@ -626,7 +584,9 @@ const ProgressScreen = () => {
             <View style={styles.modalBody}>
               <View style={styles.prDetailRow}>
                 <Text style={styles.prDetailLabel}>Weight</Text>
-                <Text style={styles.prDetailValue}>{selectedPR.weight} lbs</Text>
+                <Text style={styles.prDetailValue}>
+                  {selectedPR.weight > 0 ? `${selectedPR.weight} lbs` : 'Bodyweight'}
+                </Text>
               </View>
               <View style={styles.prDetailRow}>
                 <Text style={styles.prDetailLabel}>Reps</Text>
@@ -634,11 +594,15 @@ const ProgressScreen = () => {
               </View>
               <View style={styles.prDetailRow}>
                 <Text style={styles.prDetailLabel}>Total Volume</Text>
-                <Text style={styles.prDetailValue}>{selectedPR.weight * selectedPR.reps} lbs</Text>
+                <Text style={styles.prDetailValue}>
+                  {selectedPR.weight > 0 ? `${selectedPR.weight * selectedPR.reps} lbs` : 'N/A'}
+                </Text>
               </View>
               <View style={styles.prDetailRow}>
                 <Text style={styles.prDetailLabel}>Date Set</Text>
-                <Text style={styles.prDetailValue}>{new Date(selectedPR.date || Date.now()).toLocaleDateString()}</Text>
+                <Text style={styles.prDetailValue}>
+                  {new Date(selectedPR.date || Date.now()).toLocaleDateString()}
+                </Text>
               </View>
             </View>
             
@@ -706,11 +670,13 @@ const ProgressScreen = () => {
           />
         </View>
 
-        {/* Key Stats - Unified Card */}
+        {/* Key Stats Summary */}
         <Card style={styles.primaryStatCard}>
           <View style={styles.mainStatContainer}>
             <Text style={styles.primaryStatValue}>{stats.totalWorkouts}</Text>
-            <Text style={styles.primaryStatLabel}>Workouts Completed - {timePeriods.find(p => p.id === selectedPeriod)?.label}</Text>
+            <Text style={styles.primaryStatLabel}>
+              Workouts Completed - {timePeriods.find(p => p.id === selectedPeriod)?.label}
+            </Text>
           </View>
           
           <View style={styles.subStats}>
@@ -793,53 +759,105 @@ const ProgressScreen = () => {
           />
         </Card>
 
-        {/* Personal Records - Horizontal List */}
+        {/* Personal Records Section */}
         <View style={styles.prSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Personal Records</Text>
-            <TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.viewAllButton}
+              onPress={() => navigation.navigate('PersonalRecords')}
+            >
               <Text style={styles.viewAllText}>View All</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
             </TouchableOpacity>
           </View>
           
           {Object.keys(personalRecords).length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.prList}>
-                {Object.entries(personalRecords).slice(0, 6).map(([exerciseId, record]) => (
-                  <TouchableOpacity
-                    key={exerciseId}
-                    style={styles.prItem}
-                    onPress={() => {
-                      setSelectedPR({ ...record, exerciseName: exerciseId });
-                      setShowDetailModal(true);
-                    }}
-                  >
-                    <View style={styles.prIconSmall}>
-                      <Ionicons name="trophy" size={16} color={colors.primary} />
-                    </View>
-                    <View style={styles.prInfo}>
-                      <Text style={styles.prExerciseSmall} numberOfLines={1}>
-                        {exerciseId.replace(/_/g, ' ').charAt(0).toUpperCase() + 
-                         exerciseId.slice(1).replace(/_/g, ' ')}
-                      </Text>
-                      <Text style={styles.prValueSmall}>{record.weight} × {record.reps}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                {Object.entries(personalRecords)
+                  .sort((a, b) => {
+                    // Sort by date (most recent first), then by volume
+                    const dateA = new Date(a[1].date || 0);
+                    const dateB = new Date(b[1].date || 0);
+                    
+                    if (dateA.getTime() !== dateB.getTime()) {
+                      return dateB.getTime() - dateA.getTime();
+                    }
+                    
+                    const volumeA = a[1].volume || (a[1].weight * a[1].reps) || 0;
+                    const volumeB = b[1].volume || (b[1].weight * b[1].reps) || 0;
+                    return volumeB - volumeA;
+                  })
+                  .slice(0, 6)
+                  .map(([exerciseId, record], index) => (
+                    <TouchableOpacity
+                      key={exerciseId}
+                      style={[styles.prItem, index === 0 && styles.prItemTop]}
+                      onPress={() => {
+                        setSelectedPR({ 
+                          ...record, 
+                          exerciseName: exerciseId.replace(/_/g, ' ')
+                            .split(' ')
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(' ')
+                        });
+                        setShowDetailModal(true);
+                      }}
+                    >
+                      <View style={styles.prIconSmall}>
+                        <Ionicons 
+                          name={index === 0 ? "trophy" : "medal"} 
+                          size={16} 
+                          color={index === 0 ? colors.warning : colors.primary} 
+                        />
+                      </View>
+                      <View style={styles.prInfo}>
+                        <Text style={styles.prExerciseSmall} numberOfLines={1}>
+                          {exerciseId.replace(/_/g, ' ')
+                            .split(' ')
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(' ')}
+                        </Text>
+                        <Text style={styles.prValueSmall}>
+                          {record.weight > 0 ? `${record.weight} lbs × ` : ''}
+                          {record.reps} {exerciseId.toLowerCase().includes('plank') && record.reps > 30 ? 'sec' : 'reps'}
+                        </Text>
+                        <Text style={styles.prDateSmall}>
+                          {new Date(record.date || Date.now()).toLocaleDateString('en', { 
+                            month: 'short', 
+                            day: 'numeric' 
+                          })}
+                        </Text>
+                      </View>
+                      {index === 0 && (
+                        <View style={styles.prTopBadge}>
+                          <Text style={styles.prTopBadgeText}>🔥</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
               </View>
             </ScrollView>
           ) : (
-            <Card style={styles.emptyCard}>
+            <TouchableOpacity 
+              style={styles.emptyCard}
+              onPress={() => navigation.navigate('Workouts')}
+            >
               <Text style={styles.emptyIcon}>🏆</Text>
               <Text style={styles.emptyTitle}>No records yet</Text>
               <Text style={styles.emptyText}>
                 Complete workouts to set your personal records
               </Text>
-            </Card>
+              <View style={styles.emptyButton}>
+                <Text style={styles.emptyButtonText}>Start Your First Workout</Text>
+                <Ionicons name="arrow-forward" size={16} color={colors.primary} />
+              </View>
+            </TouchableOpacity>
           )}
         </View>
 
-        {/* Muscle Group Distribution - Only if sufficient data */}
+        {/* Muscle Group Distribution Chart */}
         {Object.keys(stats.muscleGroupDistribution).length > 1 && (
           <Card style={styles.chartCard}>
             <Text style={styles.chartTitle}>Muscle Group Focus</Text>
@@ -862,7 +880,7 @@ const ProgressScreen = () => {
           </Card>
         )}
 
-        {/* Achievements */}
+        {/* Achievements Section */}
         <View style={styles.achievementsSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Achievements</Text>
@@ -929,7 +947,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     top: 8,
-    height: 35, // Match the periodSelector height
+    height: 35,
     width: 40,
     pointerEvents: 'none',
   },
@@ -940,7 +958,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     gap: spacing.xs,
-
   },
   periodButton: {
     paddingHorizontal: spacing.lg,
@@ -964,28 +981,6 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xl,
     marginBottom: spacing.lg,
     padding: spacing.xl,
-  },
-  statHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: `${colors.primary}15`,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  progressChange: {
-    ...typography.h3,
-    color: colors.success,
-    fontWeight: 'bold',
-  },
-  progressNegative: {
-    color: colors.error,
   },
   primaryStatValue: {
     ...typography.displayLarge,
@@ -1018,41 +1013,15 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
   },
-  comparisonCard: {
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-  },
-  comparisonHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  comparisonTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  comparisonText: {
-    ...typography.h3,
-    fontWeight: 'bold',
-    marginBottom: spacing.xs,
-  },
-  comparisonSubtext: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
   metricSection: {
     marginBottom: spacing.lg,
   },
   metricSelector: {
-  flexDirection: 'row',
-  paddingHorizontal: spacing.xl,
-  gap: spacing.sm,
-  justifyContent: 'center',
-},
+    flexDirection: 'row',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
+    justifyContent: 'center',
+  },
   metricPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1115,6 +1084,11 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.primary,
   },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   prList: {
     flexDirection: 'row',
     paddingHorizontal: spacing.xl,
@@ -1128,6 +1102,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     minWidth: 140,
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  prItemTop: {
+    borderWidth: 1,
+    borderColor: `${colors.warning}30`,
+    shadowColor: colors.warning,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   prIconSmall: {
     width: 32,
@@ -1150,10 +1147,28 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
   },
+  prDateSmall: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  prTopBadge: {
+    position: 'absolute',
+    top: spacing.xs,
+    right: spacing.xs,
+  },
+  prTopBadgeText: {
+    fontSize: 12,
+  },
   emptyCard: {
     marginHorizontal: spacing.xl,
     padding: spacing.xxxl,
     alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   emptyIcon: {
     fontSize: 48,
@@ -1168,6 +1183,22 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: `${colors.primary}15`,
+    borderRadius: 20,
+    gap: spacing.xs,
+  },
+  emptyButtonText: {
+    ...typography.bodyMedium,
+    color: colors.primary,
+    fontWeight: '600',
   },
   achievementsContainer: {
     position: 'relative',

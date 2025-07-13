@@ -17,6 +17,7 @@ import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 import { useWorkout } from '../../context/WorkoutContext';
 
+// Available equipment types for workout generation
 const equipmentOptions = [
   {
     id: 'dumbbell',
@@ -45,7 +46,7 @@ const equipmentOptions = [
   {
     id: 'resistance band',
     name: 'Resistance Bands',
-    icon: '🎯',
+    icon: '♾️',
     description: 'Elastic bands',
   },
   {
@@ -63,7 +64,7 @@ const equipmentOptions = [
   {
     id: 'smith machine',
     name: 'Smith Machine',
-    icon: '🏗️',
+    icon: '⚙️',
     description: 'Guided barbell system',
   },
 ];
@@ -73,15 +74,15 @@ const EquipmentSelectionScreen = ({ navigation, route }) => {
   const { selectedEquipment: contextEquipment } = useWorkout();
   const preselectedMuscleGroup = route.params?.preselectedMuscleGroup;
 
+  // Set default equipment selection on component mount
   useEffect(() => {
-    // Pre-select bodyweight by default
     setSelectedEquipment(['body weight']);
   }, []);
 
+  // Handle equipment selection/deselection with validation
   const toggleEquipment = (equipmentId) => {
     setSelectedEquipment(prev => {
       if (prev.includes(equipmentId)) {
-        // Don't allow deselecting if it's the only one selected
         if (prev.length === 1) {
           Alert.alert('Selection Required', 'Please select at least one equipment type.');
           return prev;
@@ -93,20 +94,28 @@ const EquipmentSelectionScreen = ({ navigation, route }) => {
     });
   };
 
+  // Navigation logic: skip muscle selection for Quick Start, normal flow for Smart Plan
   const handleContinue = () => {
     if (selectedEquipment.length === 0) {
       Alert.alert('Selection Required', 'Please select at least one equipment type.');
       return;
     }
 
-
-    // Navigate to muscle group selection
-    navigation.navigate('MuscleGroupSelection', {
-      selectedEquipment,
-      preselectedMuscleGroup,
-    });
+    if (preselectedMuscleGroup) {
+      // Quick Start flow: skip muscle selection screen
+      navigation.navigate('WorkoutGenerator', {
+        selectedEquipment,
+        selectedMuscleGroup: preselectedMuscleGroup,
+      });
+    } else {
+      // Smart Plan flow: proceed to muscle selection
+      navigation.navigate('MuscleGroupSelection', {
+        selectedEquipment,
+      });
+    }
   };
 
+  // Equipment card component with selection state
   const EquipmentCard = ({ equipment }) => {
     const isSelected = selectedEquipment.includes(equipment.id);
 
@@ -141,7 +150,7 @@ const EquipmentSelectionScreen = ({ navigation, route }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Header with back button and title */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -156,33 +165,33 @@ const EquipmentSelectionScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Selection Info */}
+        {/* Selection counter and instructions */}
         <View style={styles.selectionInfo}>
           <Text style={styles.selectionText}>
             {selectedEquipment.length} selected • Tap to select multiple
           </Text>
         </View>
 
-        {/* Equipment Grid */}
+        {/* Equipment selection grid */}
         <View style={styles.equipmentGrid}>
           {equipmentOptions.map((equipment) => (
             <EquipmentCard key={equipment.id} equipment={equipment} />
           ))}
         </View>
 
-        {/* Quick Select Options */}
+        {/* Quick selection presets for common setups */}
         <View style={styles.quickSelectSection}>
           <Text style={styles.quickSelectTitle}>Quick Select</Text>
           <View style={styles.quickSelectButtons}>
             <TouchableOpacity
               style={styles.quickSelectButton}
-              onPress={() => setSelectedEquipment(['bodyweight'])}
+              onPress={() => setSelectedEquipment(['body weight'])}
             >
               <Text style={styles.quickSelectText}>Bodyweight Only</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickSelectButton}
-              onPress={() => setSelectedEquipment(['dumbbells', 'bench'])}
+              onPress={() => setSelectedEquipment(['dumbbell', 'barbell'])}
             >
               <Text style={styles.quickSelectText}>Home Gym</Text>
             </TouchableOpacity>
@@ -195,7 +204,7 @@ const EquipmentSelectionScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Continue Button */}
+        {/* Continue to next step */}
         <View style={styles.buttonContainer}>
           <GradientButton
             title="Continue"
@@ -256,7 +265,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     paddingHorizontal: spacing.lg,
     gap: spacing.md,
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.lg,
   },
   equipmentCard: {
     width: '47%',
@@ -317,11 +326,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
   },
   quickSelectText: {
     ...typography.bodySmall,
     color: colors.textPrimary,
     fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 16,
   },
   buttonContainer: {
     paddingHorizontal: spacing.xl,

@@ -191,37 +191,6 @@ const DashboardScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  const UpcomingWorkout = () => {
-    const suggestedWorkouts = [
-      { muscle: 'Chest', lastDone: 3, icon: '🎯' },
-      { muscle: 'Back', lastDone: 2, icon: '🔙' },
-      { muscle: 'Legs', lastDone: 4, icon: '🦵' },
-    ];
-
-    const nextWorkout = suggestedWorkouts.sort((a, b) => b.lastDone - a.lastDone)[0];
-
-    return (
-      <Card style={styles.upcomingCard}>
-        <View style={styles.upcomingHeader}>
-          <Text style={styles.upcomingTitle}>Suggested Next Workout</Text>
-          <TouchableOpacity>
-            <Ionicons name="refresh" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity
-          style={styles.upcomingContent}
-          onPress={() => navigation.navigate('Workouts')}
-        >
-          <Text style={styles.upcomingIcon}>{nextWorkout.icon}</Text>
-          <View style={styles.upcomingInfo}>
-            <Text style={styles.upcomingMuscle}>{nextWorkout.muscle} Day</Text>
-            <Text style={styles.upcomingTime}>Last done {nextWorkout.lastDone} days ago</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
-        </TouchableOpacity>
-      </Card>
-    );
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -431,8 +400,6 @@ const DashboardScreen = ({ navigation }) => {
             </Card>
           </View>
         </View>
-
-        <UpcomingWorkout />
 
       </ScrollView>
     </SafeAreaView>
@@ -676,7 +643,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   statsSection: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.xs,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -702,41 +669,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textTransform: 'uppercase',
     textAlign: 'center',
-  },
-  upcomingCard: {
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.xl,
-    padding: spacing.xl,
-  },
-  upcomingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  upcomingTitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
-  },
-  upcomingContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  upcomingIcon: {
-    fontSize: 32,
-    marginRight: spacing.lg,
-  },
-  upcomingInfo: {
-    flex: 1,
-  },
-  upcomingMuscle: {
-    ...typography.bodyLarge,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  upcomingTime: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
   },
 });
 
