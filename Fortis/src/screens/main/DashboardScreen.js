@@ -20,7 +20,7 @@ import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 import { useApp } from '../../context/AppContext';
 import { ProgressChart } from 'react-native-chart-kit';
-import { useFocusEffect } from '@react-navigation/native'; // Add this import
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -80,7 +80,6 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   const calculateStats = () => {
-    // Calculate weekly workouts
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
@@ -88,46 +87,59 @@ const DashboardScreen = ({ navigation }) => {
       new Date(w.date) >= oneWeekAgo
     );
 
-    console.log('All workouts from context:', workouts);
-    console.log('Filtered weekly workouts:', weeklyWorkouts);
-    console.log('Weekly completion values:', weeklyWorkouts.map(w => w.completion_percentage));
-
-    // Calculate streak
-    let streak = 0;
-    const today = new Date();
-    const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    // Calculate enhanced stats
     const weeklyAverageIntensity = weeklyWorkouts.reduce((sum, w) =>
       sum + (w.average_intensity || 3), 0) / (weeklyWorkouts.length || 1);
 
     const weeklyCompletionRate = weeklyWorkouts.reduce((sum, w) =>
       sum + (w.completion_percentage ?? 0), 0) / (weeklyWorkouts.length || 1);
 
-    for (let i = 0; i < sortedWorkouts.length; i++) {
-      const workoutDate = new Date(sortedWorkouts[i].date);
-      const daysDiff = Math.floor((today - workoutDate) / (1000 * 60 * 60 * 24));
-
-      if (daysDiff === i) {
-        streak++;
-      } else {
-        break;
+    const calculateCurrentStreak = () => {
+      if (workouts.length === 0) return 0;
+      
+      const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
+      let currentStreak = 0;
+      let checkDate = new Date();
+      checkDate.setHours(0, 0, 0, 0);
+      
+      const todayWorkout = workouts.some(w => {
+        const workoutDate = new Date(w.date);
+        workoutDate.setHours(0, 0, 0, 0);
+        return workoutDate.getTime() === checkDate.getTime();
+      });
+      
+      // Start from yesterday if no workout today
+      if (!todayWorkout) {
+        checkDate.setDate(checkDate.getDate() - 1);
       }
-    }
+      
+      for (const workout of sortedWorkouts) {
+        const workoutDate = new Date(workout.date);
+        workoutDate.setHours(0, 0, 0, 0);
+        
+        if (workoutDate.getTime() === checkDate.getTime()) {
+          currentStreak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else if (workoutDate.getTime() < checkDate.getTime()) {
+          break; // Gap found
+        }
+      }
+      
+      return currentStreak;
+    };
 
-    // Check if worked out today
+    const streak = calculateCurrentStreak();
+
+    const today = new Date();
     const todayWorkout = workouts.some(w => {
       const workoutDate = new Date(w.date);
       return workoutDate.toDateString() === today.toDateString();
     });
 
-    // Calculate total volume for the week
     const weeklyVolume = weeklyWorkouts.reduce((sum, w) => {
-      // Use total_volume if available (from database), otherwise calculate from totalVolume
       return sum + (w.total_volume || w.totalVolume || 0);
     }, 0);
 
-    // Get last workout
+    const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
     const lastWorkout = sortedWorkouts[0] || null;
 
     setStats({
@@ -179,37 +191,6 @@ const DashboardScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  const UpcomingWorkout = () => {
-    const suggestedWorkouts = [
-      { muscle: 'Chest', lastDone: 3, icon: '🎯' },
-      { muscle: 'Back', lastDone: 2, icon: '🔙' },
-      { muscle: 'Legs', lastDone: 4, icon: '🦵' },
-    ];
-
-    const nextWorkout = suggestedWorkouts.sort((a, b) => b.lastDone - a.lastDone)[0];
-
-    return (
-      <Card style={styles.upcomingCard}>
-        <View style={styles.upcomingHeader}>
-          <Text style={styles.upcomingTitle}>Suggested Next Workout</Text>
-          <TouchableOpacity>
-            <Ionicons name="refresh" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity
-          style={styles.upcomingContent}
-          onPress={() => navigation.navigate('Workouts')}
-        >
-          <Text style={styles.upcomingIcon}>{nextWorkout.icon}</Text>
-          <View style={styles.upcomingInfo}>
-            <Text style={styles.upcomingMuscle}>{nextWorkout.muscle} Day</Text>
-            <Text style={styles.upcomingTime}>Last done {nextWorkout.lastDone} days ago</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
-        </TouchableOpacity>
-      </Card>
-    );
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -349,7 +330,6 @@ const DashboardScreen = ({ navigation }) => {
               icon="trophy"
               title="Personal Records"
               color={colors.warning}
-
               onPress={() => navigation.navigate('PersonalRecords')}
             />
             <QuickAction
@@ -420,9 +400,6 @@ const DashboardScreen = ({ navigation }) => {
             </Card>
           </View>
         </View>
-
-        {/* Upcoming Workout Suggestion */}
-        <UpcomingWorkout />
 
       </ScrollView>
     </SafeAreaView>
@@ -666,7 +643,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   statsSection: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.xs,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -692,41 +669,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textTransform: 'uppercase',
     textAlign: 'center',
-  },
-  upcomingCard: {
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.xl,
-    padding: spacing.xl,
-  },
-  upcomingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  upcomingTitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
-  },
-  upcomingContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  upcomingIcon: {
-    fontSize: 32,
-    marginRight: spacing.lg,
-  },
-  upcomingInfo: {
-    flex: 1,
-  },
-  upcomingMuscle: {
-    ...typography.bodyLarge,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  upcomingTime: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
   },
 });
 
