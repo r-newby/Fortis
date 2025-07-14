@@ -9,6 +9,12 @@
     "web": "expo start --web",
     "test": "jest"
   },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ]
+  },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",
     "@expo/vector-icons": "^14.1.0",
@@ -35,8 +41,6 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@react-native-community/cli": "latest",
-    "@testing-library/jest-native": "^5.4.3",
-    "@testing-library/react-native": "^13.2.0",
     "@types/react": "~19.0.10",
     "babel-jest": "^30.0.4",
     "jest": "^30.0.4",

@@ -11,7 +11,7 @@ import {
   Share,
   Modal,
 } from 'react-native';
-import { LineChart, BarChart } from 'react-native-chart-kit';
+import { LineChart } from 'react-native-chart-kit';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Card from '../../components/common/Card';
@@ -522,30 +522,6 @@ const ProgressScreen = ({ navigation }) => {
     };
   };
 
-  // Prepare muscle group distribution chart data
-  const getMuscleGroupChartData = () => {
-    const groups = Object.entries(stats.muscleGroupDistribution);
-    if (groups.length === 0) {
-      return {
-        labels: ['No Data'],
-        datasets: [{ data: [1] }],
-      };
-    }
-
-    const topGroups = groups
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
-
-    return {
-      labels: topGroups.map(([group]) => 
-        group.charAt(0).toUpperCase() + group.slice(1).replace('_', ' ')
-      ),
-      datasets: [{
-        data: topGroups.map(([, count]) => count),
-      }],
-    };
-  };
-
   // Format large numbers for display
   const formatVolume = (volume) => {
     if (volume >= 1000000) {
@@ -857,29 +833,6 @@ const ProgressScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* Muscle Group Distribution Chart */}
-        {Object.keys(stats.muscleGroupDistribution).length > 1 && (
-          <Card style={styles.chartCard}>
-            <Text style={styles.chartTitle}>Muscle Group Focus</Text>
-            <BarChart
-              data={getMuscleGroupChartData()}
-              width={width - spacing.xl * 4}
-              height={160}
-              chartConfig={{
-                backgroundColor: colors.surface,
-                backgroundGradientFrom: colors.surface,
-                backgroundGradientTo: colors.surface,
-                decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(139, 148, 158, ${opacity})`,
-                barPercentage: 0.6,
-              }}
-              style={styles.chart}
-              showValuesOnTopOfBars
-            />
-          </Card>
-        )}
-
         {/* Achievements Section */}
         <View style={styles.achievementsSection}>
           <View style={styles.sectionHeader}>
@@ -1101,8 +1054,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    minWidth: 140,
     position: 'relative',
+    minWidth: 400,
     borderWidth: 1,
     borderColor: colors.border,
     shadowColor: '#000',
