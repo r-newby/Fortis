@@ -156,44 +156,78 @@ const WorkoutDisplayScreen = ({ navigation, route }) => {
   setShowIntensityModal(false);
 
   // Check for progression suggestion
-  const checkProgressionSuggestion = async (intensity) => {
-    const exercise = workoutExercises[currentExercise];
+  // --- NEW checkProgressionSuggestion ---------------------------------
+const checkProgressionSuggestion = async (intensity) => {
+  const exercise = workoutExercises[currentExercise];
+  const current = { reps: currentReps, weight: currentWeight, sets: exercise.sets };
 
-    const history = await getProgressionHistory(exercise.id);
+  const history = await getProgressionHistory(exercise.id) || [];
+  const threeWeeksAgo = new Date();
+  threeWeeksAgo.setDate(threeWeeksAgo.getDate() - 21);
 
-    let suggestion = null;
+  const recent = history.filter(h => new Date(h.date) >= threeWeeksAgo);
 
-    // Enhanced progression logic with history
-    if (intensity <= 2 && (!history || history.intensity <= 2)) {
+  // Skip if there's no historyf
+  if (recent.length === 0) {
+    console.log('No history. skipping progression check.');
+    return;
+  }
+
+  const avgIntensity = recent.reduce((s, h) => s + h.intensity, 0) / recent.length;
+  const repsTrend   = recent.every(h => h.reps   >= current.reps);
+  const weightTrend = recent.every(h => h.weight >= current.weight);
+
+  let suggestion = null;
+
+  // ---------- PROGRESSION ----------
+  if (intensity <= 2 && (repsTrend || weightTrend)) {
+    if (current.reps < 12) {
       suggestion = {
-        type: 'progression',
-        message: `Great job! You've been crushing this weight. Ready to try ${currentWeight + 5}lbs next week?`,
-        newWeight: currentWeight + 5,
-        exercise: exercise.name,
-        exerciseId: exercise.id
+        type: 'reps',
+        newReps: current.reps + 1,
+        message: `That was easy. Try ${current.reps + 1} reps next time.`,
       };
-    } else if (intensity === 5) {
+    } else if (current.weight < 150) {
+      const inc = current.weight >= 100 ? 10 : 5;
       suggestion = {
-        type: 'regression',
-        message: `That looked tough! Let's try ${Math.max(currentWeight - 5, 0)}lbs next week and focus on perfect form.`,
-        newWeight: Math.max(currentWeight - 5, 0),
-        exercise: exercise.name,
-        exerciseId: exercise.id
+        type: 'weight',
+        newWeight: current.weight + inc,
+        message: `Nice work! Bump the weight to ${current.weight + inc} lbs next time.`,
+      };
+    } else {
+      suggestion = {
+        type: 'set',
+        addSet: 1,
+        message: 'You’re cruising. Let’s add one extra set next week.',
       };
     }
+  }
 
-    if (suggestion) {
-      await saveProgressionSuggestion(exercise.id, {
-        intensity,
-        weight: currentWeight,
-        suggestion: suggestion.type,
-        newWeight: suggestion.newWeight
-      });
+  // ---------- REGRESSION ----------
+  if (intensity === 5) {
+    suggestion = {
+      type: 'regression',
+      newWeight: Math.max(current.weight - 5, 0),
+      message: `That was tough. Drop to ${Math.max(current.weight - 5, 0)} lbs next week and nail the form.`,
+    };
+  }
 
-      setProgressionSuggestion(suggestion);
-      setShowProgressionModal(true);
-    }
-  };
+  if (!suggestion?.type) return;
+
+  setProgressionSuggestion({
+    ...suggestion,
+    intensity,
+    oldWeight: current.weight,
+    oldReps: current.reps,
+    oldSets: current.sets,
+    exercise: exercise.name,
+    exerciseId: exercise.id,
+  });
+
+  setShowProgressionModal(true);
+};
+
+
 
   await checkProgressionSuggestion(rating);
 
@@ -209,21 +243,55 @@ const WorkoutDisplayScreen = ({ navigation, route }) => {
 const handleProgressionDecision = async (accepted) => {
   if (!progressionSuggestion) return;
 
+  console.log('Inserting suggestion:', {
+  type,
+  accepted,
+  newWeight,
+  newReps,
+  addSet,
+});
+
+  const {
+    type,
+    newWeight,
+    newReps,
+    addSet,
+    oldWeight,
+    oldReps,
+    oldSets,
+    exerciseId,
+    intensity,
+    message,
+  } = progressionSuggestion;
+
   try {
-    await saveProgressionSuggestion(progressionSuggestion.exerciseId, {
-      accepted,
-      suggestion: progressionSuggestion.type,
-      ...(progressionSuggestion.newWeight && { newWeight: progressionSuggestion.newWeight }),
-      ...(progressionSuggestion.newReps && { newReps: progressionSuggestion.newReps }),
-      ...(progressionSuggestion.addSet && { addSet: progressionSuggestion.addSet }),
-      timestamp: new Date().toISOString(),
-    });
+    const { error } = await supabase
+      .from('progression_suggestions')
+      .insert({
+        user_id: userProfile.id,
+        exercise_id: exerciseId,
+        suggestion_type: type,
+        old_weight: oldWeight,
+        new_weight: newWeight ?? null,
+        old_reps: oldReps,
+        new_reps: newReps ?? null,
+        old_sets: oldSets,
+        new_sets: addSet ? oldSets + 1 : null,
+        intensity_rating: intensity,
+        reason: message,
+        accepted,
+      });
+
+    if (error) {
+      console.error('Failed to save progression decision:', error);
+    }
   } catch (error) {
-    console.error('Failed to save progression decision:', error);
+    console.error('Unexpected error saving progression decision:', error);
   } finally {
     setShowProgressionModal(false);
   }
 };
+
 
 
 /*const checkProgressionSuggestion = async (intensity) => {
