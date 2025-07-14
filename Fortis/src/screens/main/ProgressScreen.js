@@ -11,7 +11,7 @@ import {
   Share,
   Modal,
 } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
+import { LineChart, BarChart } from 'react-native-chart-kit';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Card from '../../components/common/Card';
@@ -25,7 +25,6 @@ const { width } = Dimensions.get('window');
 const ProgressScreen = ({ navigation }) => {
   const { personalRecords, workouts, userProfile } = useApp();
   
-  // Component state
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [selectedMetric, setSelectedMetric] = useState('workouts');
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -42,7 +41,6 @@ const ProgressScreen = ({ navigation }) => {
     completionRate: 0,
   });
 
-  // Time period options for filtering
   const timePeriods = [
     { id: 'week', label: 'Last 7 Days', days: 7 },
     { id: 'month', label: 'Last 30 Days', days: 30 },
@@ -51,7 +49,6 @@ const ProgressScreen = ({ navigation }) => {
     { id: 'year', label: 'Last Year', days: 365 },
   ];
 
-  // Metric options for chart display
   const metrics = [
     { id: 'workouts', label: 'Workouts', icon: 'calendar', unit: 'count' },
     { id: 'volume', label: 'Volume', icon: 'barbell', unit: 'lbs' },
@@ -87,7 +84,6 @@ const ProgressScreen = ({ navigation }) => {
       return;
     }
 
-    // Calculate volume and time metrics
     const totalVolume = filteredWorkouts.reduce((sum, workout) => {
       return sum + (workout.total_volume || workout.totalVolume || 0);
     }, 0);
@@ -97,14 +93,43 @@ const ProgressScreen = ({ navigation }) => {
     }, 0);
     const avgTime = Math.round(totalTime / filteredWorkouts.length / 60);
 
-    // Build muscle group distribution
-    const muscleGroupCount = {};
+    // Map exercise types to standardized muscle groups
+    const muscleGroupMapping = {
+      'chest': 'chest',
+      'back': 'back',
+      'shoulders': 'shoulders',
+      'arms': 'arms',
+      'biceps': 'arms',
+      'triceps': 'arms',
+      'legs': 'legs',
+      'quadriceps': 'legs',
+      'hamstrings': 'legs',
+      'glutes': 'legs',
+      'calves': 'legs',
+      'core': 'core',
+      'abs': 'core',
+      'cardio': 'cardio',
+      'full body': 'full_body'
+    };
+
+    const muscleGroupCount = {
+      chest: 0,
+      back: 0,
+      shoulders: 0,
+      arms: 0,
+      legs: 0,
+      core: 0
+    };
+
     filteredWorkouts.forEach(workout => {
-      const group = workout.muscle_group || 'other';
-      muscleGroupCount[group] = (muscleGroupCount[group] || 0) + 1;
+      const rawGroup = workout.muscle_group || 'other';
+      const mappedGroup = muscleGroupMapping[rawGroup.toLowerCase()] || 'other';
+      
+      if (muscleGroupCount.hasOwnProperty(mappedGroup)) {
+        muscleGroupCount[mappedGroup]++;
+      }
     });
 
-    // Calculate performance metrics
     const avgIntensity = filteredWorkouts.reduce((sum, workout) => {
       return sum + (workout.intensity || 3);
     }, 0) / filteredWorkouts.length;
@@ -113,7 +138,7 @@ const ProgressScreen = ({ navigation }) => {
       return sum + (workout.completion_percentage || 100);
     }, 0) / filteredWorkouts.length;
 
-    // Compare with previous period for progress tracking
+    // Compare with previous period for progress calculation
     const previousPeriodWorkouts = workouts.filter(w => {
       const workoutDate = new Date(w.date);
       const previousCutoff = new Date(cutoffDate);
@@ -175,7 +200,6 @@ const ProgressScreen = ({ navigation }) => {
     return streak;
   };
 
-  // Find most frequently trained muscle group
   const getFavoriteExercise = (muscleGroupCount) => {
     const muscleGroups = Object.entries(muscleGroupCount);
     if (muscleGroups.length === 0) return 'None yet';
@@ -184,7 +208,7 @@ const ProgressScreen = ({ navigation }) => {
     return favorite[0].charAt(0).toUpperCase() + favorite[0].slice(1);
   };
 
-  // Generate achievement badges based on user milestones
+  // Generate achievement badges based on milestones
   const calculateAchievements = () => {
     const achievements = [];
     const now = new Date();
@@ -522,7 +546,6 @@ const ProgressScreen = ({ navigation }) => {
     };
   };
 
-  // Format large numbers for display
   const formatVolume = (volume) => {
     if (volume >= 1000000) {
       return `${(volume / 1000000).toFixed(1)}M`;
@@ -533,7 +556,6 @@ const ProgressScreen = ({ navigation }) => {
     return volume.toString();
   };
 
-  // Modal component for PR details
   const PRDetailModal = () => {
     if (!selectedPR) return null;
 
@@ -734,6 +756,230 @@ const ProgressScreen = ({ navigation }) => {
             style={styles.chart}
           />
         </Card>
+
+{/* Muscle Group Distribution Chart */}
+<Card style={styles.chartCard}>
+  <View style={styles.chartHeader}>
+    <Text style={styles.chartTitle}>Muscle Group Distribution</Text>
+    <Text style={styles.chartPeriod}>
+      {timePeriods.find(p => p.id === selectedPeriod)?.label}
+    </Text>
+  </View>
+
+  {Object.values(stats.muscleGroupDistribution).reduce((sum, count) => sum + count, 0) > 0 ? (
+    <>
+      <BarChart
+        data={{
+          labels: ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'],
+          datasets: [{
+            data: [
+              stats.muscleGroupDistribution.chest || 0,
+              stats.muscleGroupDistribution.back || 0,
+              stats.muscleGroupDistribution.shoulders || 0,
+              stats.muscleGroupDistribution.arms || 0,
+              stats.muscleGroupDistribution.legs || 0,
+              stats.muscleGroupDistribution.core || 0,
+            ].map(val => val || 0.1),
+          }]
+        }}
+        width={width - spacing.xl * 4}
+        height={270}
+        chartConfig={{
+          backgroundColor: colors.surface,
+          backgroundGradientFrom: colors.surface,
+          backgroundGradientTo: colors.surface,
+          decimalPlaces: 0,
+          color: (opacity = 1) => `rgba(255, 71, 87, ${opacity})`,
+          labelColor: (opacity = 1) => `rgba(139, 148, 158, ${opacity})`,
+          style: {
+            borderRadius: 16,
+          },
+          propsForBackgroundLines: {
+            strokeWidth: 1,
+            stroke: `rgba(255, 71, 87, 0.3)`,
+            strokeDasharray: '5,5',
+            strokeOpacity: 0.5,
+          },
+          barPercentage: 0.6,
+          fillShadowGradient: colors.primary,
+          fillShadowGradientOpacity: 1,
+          formatTopBarValue: (value) => {
+            return value < 1 ? '' : value.toString();
+          },
+        }}
+        fromZero={true}
+        style={styles.chart}
+        verticalLabelRotation={20}
+      />
+
+      {/* Training Breakdown */}
+      <View style={[styles.breakdown, { marginTop: -spacing.sm, paddingTop: spacing.sm }]}>
+        <Text style={styles.breakdownTitle}>Training Breakdown</Text>
+        <View style={styles.breakdownGrid}>
+          {Object.entries(stats.muscleGroupDistribution)
+            .filter(([group, count]) => count > 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(([group, count]) => {
+              const totalWorkouts = Object.values(stats.muscleGroupDistribution).reduce((sum, c) => sum + c, 0);
+              const percentage = totalWorkouts > 0 ? Math.round((count / totalWorkouts) * 100) : 0;
+              
+              return (
+                <TouchableOpacity
+                  key={group}
+                  style={styles.breakdownItem}
+                  onPress={() => {
+                    // Navigate to filtered workouts (optional)
+                  }}
+                >
+                  <View style={styles.breakdownRow}>
+                    <View style={[
+                      styles.colorIndicator,
+                      { backgroundColor: colors.primary }
+                    ]} />
+                    <Text style={styles.breakdownLabel}>
+                      {group.charAt(0).toUpperCase() + group.slice(1)}
+                    </Text>
+                    <Text style={styles.breakdownValue}>{count}</Text>
+                    <Text style={styles.breakdownPercentage}>
+                      {percentage}%
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+        </View>
+        
+        {/* Untrained muscle groups */}
+        {(() => {
+          const allGroups = ['chest', 'back', 'shoulders', 'arms', 'legs', 'core'];
+          const untrainedGroups = allGroups.filter(group => 
+            !stats.muscleGroupDistribution[group] || stats.muscleGroupDistribution[group] === 0
+          );
+          
+          if (untrainedGroups.length > 0 && untrainedGroups.length < 6) {
+            return (
+              <View style={[styles.untrainedSection, { marginTop: spacing.xs, paddingTop: spacing.xs }]}>
+                <Text style={styles.untrainedTitle}>Not Trained This Period</Text>
+                <View style={styles.untrainedList}>
+                  {untrainedGroups.map(group => (
+                    <View key={group} style={styles.untrainedItem}>
+                      <View style={[
+                        styles.colorIndicator,
+                        { backgroundColor: colors.textTertiary }
+                      ]} />
+                      <Text style={styles.untrainedLabel}>
+                        {group.charAt(0).toUpperCase() + group.slice(1)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            );
+          }
+          return null;
+        })()}
+      </View>
+
+      {/* Training Insights */}
+        <View style={[styles.insights, { marginTop: spacing.xs, paddingTop: spacing.xs }]}>
+        <Text style={styles.insightsTitle}>Training Insights</Text>
+        {(() => {
+          const trainedEntries = Object.entries(stats.muscleGroupDistribution)
+            .filter(([group, count]) => count > 0);
+          const allGroups = ['chest', 'back', 'shoulders', 'arms', 'legs', 'core'];
+          const untrainedGroups = allGroups.filter(group => 
+            !stats.muscleGroupDistribution[group] || stats.muscleGroupDistribution[group] === 0
+          );
+          
+          const totalWorkouts = Object.values(stats.muscleGroupDistribution).reduce((sum, c) => sum + c, 0);
+          
+          return (
+            <>
+              {trainedEntries.length > 0 && (() => {
+                const mostTrained = trainedEntries.sort((a, b) => b[1] - a[1])[0];
+                return (
+                  <View style={styles.insightItem}>
+                    <Ionicons name="trending-up" size={16} color={colors.success} />
+                    <Text style={styles.insightText}>
+                      <Text style={styles.insightHighlight}>
+                        {mostTrained[0].charAt(0).toUpperCase() + mostTrained[0].slice(1)}
+                      </Text>
+                      {' '}is your most trained muscle group ({mostTrained[1]} workouts, {Math.round((mostTrained[1] / totalWorkouts) * 100)}%)
+                    </Text>
+                  </View>
+                );
+              })()}
+              
+              {trainedEntries.length > 1 && (() => {
+                const sortedTrained = trainedEntries.sort((a, b) => b[1] - a[1]);
+                const highest = sortedTrained[0][1];
+                const lowest = sortedTrained[sortedTrained.length - 1][1];
+                const ratio = highest / lowest;
+                
+                if (ratio > 3) {
+                  return (
+                    <View style={styles.insightItem}>
+                      <Ionicons name="warning" size={16} color={colors.warning} />
+                      <Text style={styles.insightText}>
+                        Your training shows some imbalance. Consider focusing more on{' '}
+                        <Text style={styles.insightHighlight}>
+                          {sortedTrained[sortedTrained.length - 1][0]}
+                        </Text>
+                        {' '}exercises
+                      </Text>
+                    </View>
+                  );
+                } else if (ratio <= 1.5) {
+                  return (
+                    <View style={styles.insightItem}>
+                      <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                      <Text style={styles.insightText}>
+                        Great balance! Your training is well-distributed across muscle groups
+                      </Text>
+                    </View>
+                  );
+                }
+                return null;
+              })()}
+              
+              {untrainedGroups.length > 0 && untrainedGroups.length < 6 && (
+                <View style={styles.insightItem}>
+                  <Ionicons name="information-circle" size={16} color={colors.info} />
+                  <Text style={styles.insightText}>
+                    Consider adding{' '}
+                    <Text style={styles.insightHighlight}>
+                      {untrainedGroups.slice(0, 2).map(group => 
+                        group.charAt(0).toUpperCase() + group.slice(1)
+                      ).join(' and ')}
+                    </Text>
+                    {' '}exercises for complete muscle development
+                  </Text>
+                </View>
+              )}
+              
+              {totalWorkouts >= 10 && (
+                <View style={styles.insightItem}>
+                  <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                  <Text style={styles.insightText}>
+                    Excellent consistency! You've completed {totalWorkouts} workouts this period
+                  </Text>
+                </View>
+              )}
+            </>
+          );
+        })()}
+      </View>
+    </>
+  ) : (
+    <View style={styles.emptyState}>
+      <Ionicons name="body" size={48} color={colors.textTertiary} />
+      <Text style={styles.emptyTitle}>No workout data yet</Text>
+      <Text style={styles.emptySubtitle}>
+        Complete some workouts to see your muscle group distribution
+      </Text>
+    </View>
+  )}
+</Card>
 
         {/* Personal Records Section */}
         <View style={styles.prSection}>
@@ -1250,6 +1496,131 @@ const styles = StyleSheet.create({
   sharePRButtonText: {
     ...typography.button,
     color: '#FFFFFF',
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  breakdown: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.surface,
+  },
+  breakdownTitle: {
+    ...typography.label,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    textTransform: 'uppercase',
+  },
+  breakdownGrid: {
+    gap: spacing.sm,
+  },
+  breakdownItem: {
+    marginBottom: spacing.xs,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  colorIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: spacing.sm,
+  },
+  breakdownLabel: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  breakdownValue: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '600',
+    marginRight: spacing.md,
+  },
+  breakdownPercentage: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    width: 35,
+    textAlign: 'right',
+  },
+  
+  insights: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.surface,
+  },
+  insightsTitle: {
+    ...typography.label,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    textTransform: 'uppercase',
+  },
+  insightItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
+  },
+  insightText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginLeft: spacing.sm,
+    flex: 1,
+    lineHeight: 18,
+  },
+  insightHighlight: {
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  emptyTitle: {
+    ...typography.h3,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  emptySubtitle: {
+    ...typography.bodyMedium,
+    color: colors.textTertiary,
+    textAlign: 'center',
+  },
+  untrainedSection: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.surface,
+  },
+  untrainedTitle: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    marginBottom: spacing.sm,
+    textTransform: 'uppercase',
+  },
+  untrainedList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  untrainedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  untrainedLabel: {
+    ...typography.bodySmall,
+    color: colors.textTertiary,
+    marginLeft: spacing.xs,
   },
 });
 
