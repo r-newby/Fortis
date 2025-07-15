@@ -390,9 +390,12 @@ const getProgressionHistory = async (exerciseId) => {
     setIsOnboarded(true);
   };
 
+  const [needsReload, setNeedsReload] = useState(false);
   // Enhanced reloadData that recalculates PRs
   const reloadData = async () => {
     await loadAppData();
+    setNeedsReload(false);
+
   };
 
   const value = {
@@ -413,6 +416,8 @@ const getProgressionHistory = async (exerciseId) => {
     getProgressionHistory: getPreviousWorkout,
     // Expose the PR calculation function for manual recalculation if needed
     recalculatePersonalRecords: () => user?.id ? calculatePersonalRecords(user.id).then(setPersonalRecords) : null,
+    needsReload, 
+    setNeedsReload,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

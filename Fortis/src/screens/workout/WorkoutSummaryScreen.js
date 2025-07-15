@@ -16,64 +16,35 @@ import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 
+
 const WorkoutSummaryScreen = ({ navigation, route }) => {
-  const { workoutId } = route.params || {};
-  const [workout, setWorkout] = useState(null);
-
-  useEffect(() => {
-    if (!workoutId) return;
-
-    const fetchWorkout = async () => {
-      console.log('Fetching workout with ID:', workoutId);
-      const { data, error } = await supabase
-        .from('workouts')
-        .select('*, workout_exercises(*, exercises(*))')
-        .eq('id', workoutId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching workout:', error);
-        Alert.alert('Error', 'Could not load workout summary.');
-        return;
-      }
-
-      setWorkout(data);
-    };
-
-    fetchWorkout();
-  }, [workoutId]);
+  const workout = route.params?.workout;
 
   if (!workout) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No completed workout found.</Text>
-        </View>
-      </SafeAreaView>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading summary...</Text>
+      </View>
     );
   }
 
-  
-const workoutExercises = workout.workout_exercises || [];
+  const workoutExercises = workout.exercises || [];
 
-const totalVolume = workoutExercises.reduce(
-  (total, ex) => total + (ex.reps || 0) * (ex.weight || 0),
-  0
-);
+  const totalVolume = workoutExercises.reduce((total, ex) => {
+    return total + ex.completedSets.reduce((sum, set) => {
+      return sum + (set.reps * set.weight);
+    }, 0);
+  }, 0);
 
-const totalReps = workoutExercises.reduce(
-  (total, ex) => total + (ex.reps || 0),
-  0
-);
+  const totalReps = workoutExercises.reduce((total, ex) => {
+    return total + ex.completedSets.reduce((sum, set) => sum + set.reps, 0);
+  }, 0);
 
-const totalSets = workoutExercises.length;
-const totalDuration = 0;
+  const totalSets = workoutExercises.reduce((total, ex) => {
+    return total + ex.completedSets.length;
+  }, 0);
 
-
-console.log('Fetched workout_exercises:', workout.workout_exercises);
-
-
-
+  const totalDuration = workout.duration || 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -125,6 +96,8 @@ console.log('Fetched workout_exercises:', workout.workout_exercises);
     </SafeAreaView>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   container: {

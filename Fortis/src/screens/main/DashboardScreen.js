@@ -25,7 +25,7 @@ import { useFocusEffect } from '@react-navigation/native';
 const { width } = Dimensions.get('window');
 
 const DashboardScreen = ({ navigation }) => {
-  const { userProfile, workouts, personalRecords, reloadData } = useApp();
+  const { userProfile, workouts, personalRecords, reloadData, needsReload, setNeedsReload} = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [greeting, setGreeting] = useState('');
   const [motivationalQuote, setMotivationalQuote] = useState('');
@@ -57,11 +57,17 @@ const DashboardScreen = ({ navigation }) => {
   }, [workouts]);
 
   // Recalculate stats when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      calculateStats();
-    }, [workouts])
-  );
+useFocusEffect(
+  React.useCallback(() => {
+    const reloadIfNeeded = async () => {
+      if (needsReload) {
+        await reloadData();
+        setNeedsReload(false);
+      }
+    };
+    reloadIfNeeded();
+  }, [needsReload])
+);
 
   const setTimeBasedGreeting = () => {
     const hour = new Date().getHours();

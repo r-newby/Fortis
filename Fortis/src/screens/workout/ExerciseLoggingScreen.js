@@ -18,6 +18,7 @@ import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 
+
 // Utility to format exercise names in Title Case
 const toTitleCase = (str) => {
   const lowerWords = ['of', 'on', 'in', 'at', 'to', 'for', 'with', 'a', 'an', 'the', 'and', 'but', 'or'];
@@ -45,8 +46,9 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     completeWorkout,
     startNewWorkout,
     addExerciseToWorkout,
+    lastCompletedWorkout
   } = useWorkout();
-  const { user, reloadData } = useApp();
+  const { user, reloadData, setNeedsReload } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -236,13 +238,25 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     console.log('All exercises saved with actual values for PR calculation');
     console.log('Navigating to WorkoutSummary with:', finished);
   
-  // Reload app data to recalculate PRs
-    await reloadData();
-    console.log('Navigating to WorkoutSummary with:', finished);
+
+    
     setSearchQuery('');
     setSearchResults([]);
     setExerciseLogs({});
-    navigation.navigate('WorkoutSummary', { workoutId });
+    console.log('NAVIGATION STATE:', JSON.stringify(navigation.getState(), null, 2));
+navigation.navigate('Workouts', {
+  screen: 'WorkoutSummary',
+  params: { workout: finished },
+});
+
+
+setTimeout(() => {
+  setNeedsReload(true);
+}, 250);
+
+
+
+
 
   };
 

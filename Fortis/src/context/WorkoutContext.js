@@ -21,6 +21,8 @@ export const WorkoutProvider = ({ children }) => {
   const [workoutExercises, setWorkoutExercises] = useState([]);
   const [workoutStartTime, setWorkoutStartTime] = useState(null);
   const [isCustomWorkout, setIsCustomWorkout] = useState(false);
+  const [lastCompletedWorkout, setLastCompletedWorkout] = useState(null);
+
 
   // FIXED: Updated to match the generateWorkout function signature
   const startNewWorkout = ({
@@ -141,6 +143,7 @@ export const WorkoutProvider = ({ children }) => {
       totalVolume,
     };
 
+
     // Clear state after completion
     setCurrentWorkout(null);
     setSelectedEquipment([]);
@@ -164,6 +167,7 @@ export const WorkoutProvider = ({ children }) => {
     addSet,
     addExerciseToWorkout,
     completeWorkout,
+    lastCompletedWorkout
   };
 
   return (
