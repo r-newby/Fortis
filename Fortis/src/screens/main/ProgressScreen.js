@@ -24,7 +24,7 @@ const { width } = Dimensions.get('window');
 
 const ProgressScreen = ({ navigation }) => {
   const { personalRecords, workouts, userProfile } = useApp();
-  
+
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [selectedMetric, setSelectedMetric] = useState('workouts');
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -60,12 +60,12 @@ const ProgressScreen = ({ navigation }) => {
     calculateStats();
   }, [workouts, selectedPeriod, selectedMetric]);
 
-  const calculateStats = () => {
+  const calculateStats = async () => {
     const periodDays = timePeriods.find(p => p.id === selectedPeriod).days;
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - periodDays);
 
-    const filteredWorkouts = workouts.filter(w => 
+    const filteredWorkouts = workouts.filter(w =>
       new Date(w.date) >= cutoffDate
     );
 
@@ -93,42 +93,8 @@ const ProgressScreen = ({ navigation }) => {
     }, 0);
     const avgTime = Math.round(totalTime / filteredWorkouts.length / 60);
 
-    // Map exercise types to standardized muscle groups
-    const muscleGroupMapping = {
-      'chest': 'chest',
-      'back': 'back',
-      'shoulders': 'shoulders',
-      'arms': 'arms',
-      'biceps': 'arms',
-      'triceps': 'arms',
-      'legs': 'legs',
-      'quadriceps': 'legs',
-      'hamstrings': 'legs',
-      'glutes': 'legs',
-      'calves': 'legs',
-      'core': 'core',
-      'abs': 'core',
-      'cardio': 'cardio',
-      'full body': 'full_body'
-    };
-
-    const muscleGroupCount = {
-      chest: 0,
-      back: 0,
-      shoulders: 0,
-      arms: 0,
-      legs: 0,
-      core: 0
-    };
-
-    filteredWorkouts.forEach(workout => {
-      const rawGroup = workout.muscle_group || 'other';
-      const mappedGroup = muscleGroupMapping[rawGroup.toLowerCase()] || 'other';
-      
-      if (muscleGroupCount.hasOwnProperty(mappedGroup)) {
-        muscleGroupCount[mappedGroup]++;
-      }
-    });
+    // Enhanced muscle group analysis using exercise-level data
+    const muscleGroupCount = analyzeDetailedMuscleGroups(filteredWorkouts);
 
     const avgIntensity = filteredWorkouts.reduce((sum, workout) => {
       return sum + (workout.intensity || 3);
@@ -146,9 +112,9 @@ const ProgressScreen = ({ navigation }) => {
       return workoutDate >= previousCutoff && workoutDate < cutoffDate;
     });
 
-    const previousVolume = previousPeriodWorkouts.reduce((sum, w) => 
+    const previousVolume = previousPeriodWorkouts.reduce((sum, w) =>
       sum + (w.total_volume || w.totalVolume || 0), 0);
-    const weeklyProgress = previousVolume > 0 
+    const weeklyProgress = previousVolume > 0
       ? Math.round(((totalVolume - previousVolume) / previousVolume) * 100)
       : 0;
 
@@ -167,28 +133,209 @@ const ProgressScreen = ({ navigation }) => {
     });
   };
 
+  // Enhanced function to analyze muscle groups from exercise-level data
+  const analyzeDetailedMuscleGroups = (filteredWorkouts) => {
+    const muscleGroupCount = {
+      chest: 0,
+      back: 0,
+      shoulders: 0,
+      arms: 0,
+      legs: 0,
+      core: 0
+    };
+
+    // Map exercise targets to standardized muscle groups
+    const targetToMuscleGroup = {
+      'pectorals': 'chest',
+      'chest': 'chest',
+      'upper chest': 'chest',
+      'lower chest': 'chest',
+      'inner chest': 'chest',
+      'lats': 'back',
+      'latissimus dorsi': 'back',
+      'rhomboids': 'back',
+      'middle back': 'back',
+      'lower back': 'back',
+      'upper back': 'back',
+      'traps': 'back',
+      'trapezius': 'back',
+      'rear delts': 'back',
+      'posterior deltoid': 'back',
+      'delts': 'shoulders',
+      'deltoids': 'shoulders',
+      'anterior deltoid': 'shoulders',
+      'lateral deltoid': 'shoulders',
+      'shoulders': 'shoulders',
+      'front delts': 'shoulders',
+      'side delts': 'shoulders',
+      'biceps': 'arms',
+      'triceps': 'arms',
+      'forearms': 'arms',
+      'brachialis': 'arms',
+      'brachioradialis': 'arms',
+      'quadriceps': 'legs',
+      'quads': 'legs',
+      'hamstrings': 'legs',
+      'glutes': 'legs',
+      'gluteus maximus': 'legs',
+      'calves': 'legs',
+      'gastrocnemius': 'legs',
+      'soleus': 'legs',
+      'tibialis anterior': 'legs',
+      'adductors': 'legs',
+      'abductors': 'legs',
+      'hip flexors': 'legs',
+      'abs': 'core',
+      'abdominals': 'core',
+      'obliques': 'core',
+      'transverse abdominis': 'core',
+      'rectus abdominis': 'core',
+      'core': 'core',
+      'serratus anterior': 'core'
+    };
+
+    const bodyPartToMuscleGroup = {
+      'chest': 'chest',
+      'back': 'back',
+      'shoulders': 'shoulders',
+      'upper arms': 'arms',
+      'lower arms': 'arms',
+      'upper legs': 'legs',
+      'lower legs': 'legs',
+      'waist': 'core',
+      'cardio': 'cardio'
+    };
+
+    const originalMuscleGroupMapping = {
+      'chest': 'chest',
+      'back': 'back',
+      'shoulders': 'shoulders',
+      'arms': 'arms',
+      'biceps': 'arms',
+      'triceps': 'arms',
+      'legs': 'legs',
+      'quadriceps': 'legs',
+      'hamstrings': 'legs',
+      'glutes': 'legs',
+      'calves': 'legs',
+      'core': 'core',
+      'abs': 'core',
+      'cardio': 'cardio',
+      'full body': 'full_body'
+    };
+
+    // Count workout sessions per muscle group (not individual exercises)
+    for (const workout of filteredWorkouts) {
+      const workoutMuscleGroups = new Set();
+
+      if (workout.workout_exercises && Array.isArray(workout.workout_exercises)) {
+        workout.workout_exercises.forEach(workoutExercise => {
+          const exercise = workoutExercise.exercises;
+          if (!exercise) return;
+
+          let muscleGroup = null;
+
+          // Try to map by exercise target (most specific)
+          if (exercise.target) {
+            const normalizedTarget = exercise.target.toLowerCase().trim();
+            muscleGroup = targetToMuscleGroup[normalizedTarget];
+          }
+
+          // Fallback to body part mapping
+          if (!muscleGroup && exercise.body_part) {
+            const normalizedBodyPart = exercise.body_part.toLowerCase().trim();
+            muscleGroup = bodyPartToMuscleGroup[normalizedBodyPart];
+          }
+
+          // Fallback to exercise name pattern matching
+          if (!muscleGroup && exercise.name) {
+            muscleGroup = analyzeExerciseName(exercise.name);
+          }
+
+          if (muscleGroup && muscleGroupCount.hasOwnProperty(muscleGroup)) {
+            workoutMuscleGroups.add(muscleGroup);
+          }
+        });
+      } else {
+        // Fallback to original workout-level muscle group
+        const rawGroup = workout.muscle_group || 'other';
+        const mappedGroup = originalMuscleGroupMapping[rawGroup.toLowerCase()] || 'other';
+
+        if (muscleGroupCount.hasOwnProperty(mappedGroup)) {
+          workoutMuscleGroups.add(mappedGroup);
+        }
+      }
+
+      // Count this workout session for each muscle group trained
+      workoutMuscleGroups.forEach(muscleGroup => {
+        muscleGroupCount[muscleGroup]++;
+      });
+    }
+
+    return muscleGroupCount;
+  };
+
+  // Pattern matching for exercise names (fallback method)
+  const analyzeExerciseName = (exerciseName) => {
+    const name = exerciseName.toLowerCase();
+
+    if (name.includes('bench') || name.includes('chest') || name.includes('push') ||
+      name.includes('fly') || name.includes('dip') || name.includes('pec')) {
+      return 'chest';
+    }
+
+    if (name.includes('row') || name.includes('pull') || name.includes('lat') ||
+      name.includes('deadlift') || name.includes('shrug') || name.includes('chin')) {
+      return 'back';
+    }
+
+    if (name.includes('shoulder') || name.includes('press') || name.includes('raise') ||
+      name.includes('upright') || name.includes('arnold') || name.includes('military')) {
+      return 'shoulders';
+    }
+
+    if (name.includes('curl') || name.includes('tricep') || name.includes('bicep') ||
+      name.includes('extension') || name.includes('hammer') || name.includes('preacher')) {
+      return 'arms';
+    }
+
+    if (name.includes('squat') || name.includes('lunge') || name.includes('leg') ||
+      name.includes('calf') || name.includes('quad') || name.includes('hamstring') ||
+      name.includes('glute') || name.includes('hip')) {
+      return 'legs';
+    }
+
+    if (name.includes('plank') || name.includes('crunch') || name.includes('abs') ||
+      name.includes('core') || name.includes('sit') || name.includes('oblique') ||
+      name.includes('russian twist') || name.includes('mountain climber')) {
+      return 'core';
+    }
+
+    return null;
+  };
+
   // Calculate consecutive workout days
   const calculateWorkoutStreak = () => {
     if (workouts.length === 0) return 0;
-    
+
     const sortedWorkouts = workouts.sort((a, b) => new Date(b.date) - new Date(a.date));
     let streak = 0;
     let checkDate = new Date();
     checkDate.setHours(0, 0, 0, 0);
-    
+
     const todayWorkout = workouts.some(w => {
       const workoutDate = new Date(w.date);
       return workoutDate.toDateString() === new Date().toDateString();
     });
-    
+
     if (!todayWorkout) {
       checkDate.setDate(checkDate.getDate() - 1);
     }
-    
+
     for (const workout of sortedWorkouts) {
       const workoutDate = new Date(workout.date);
       workoutDate.setHours(0, 0, 0, 0);
-      
+
       if (workoutDate.getTime() === checkDate.getTime()) {
         streak++;
         checkDate.setDate(checkDate.getDate() - 1);
@@ -196,14 +343,14 @@ const ProgressScreen = ({ navigation }) => {
         break;
       }
     }
-    
+
     return streak;
   };
 
   const getFavoriteExercise = (muscleGroupCount) => {
     const muscleGroups = Object.entries(muscleGroupCount);
     if (muscleGroups.length === 0) return 'None yet';
-    
+
     const favorite = muscleGroups.sort((a, b) => b[1] - a[1])[0];
     return favorite[0].charAt(0).toUpperCase() + favorite[0].slice(1);
   };
@@ -212,7 +359,7 @@ const ProgressScreen = ({ navigation }) => {
   const calculateAchievements = () => {
     const achievements = [];
     const now = new Date();
-    
+
     const weeklyWorkouts = workouts.filter(w => {
       const workoutDate = new Date(w.date);
       const weekAgo = new Date(now);
@@ -276,9 +423,9 @@ const ProgressScreen = ({ navigation }) => {
     }
 
     // Volume-based achievements
-    const totalVolumeAllTime = workouts.reduce((sum, w) => 
+    const totalVolumeAllTime = workouts.reduce((sum, w) =>
       sum + (w.total_volume || w.totalVolume || 0), 0);
-    
+
     if (totalVolumeAllTime >= 100000) {
       achievements.push({
         icon: 'barbell',
@@ -373,10 +520,10 @@ const ProgressScreen = ({ navigation }) => {
     }
 
     // Intensity achievements
-    const avgIntensity = workouts.length > 0 
-      ? workouts.reduce((sum, w) => sum + (w.intensity || 3), 0) / workouts.length 
+    const avgIntensity = workouts.length > 0
+      ? workouts.reduce((sum, w) => sum + (w.intensity || 3), 0) / workouts.length
       : 0;
-    
+
     if (avgIntensity >= 4.5) {
       achievements.push({
         icon: 'flash',
@@ -404,7 +551,7 @@ const ProgressScreen = ({ navigation }) => {
     const uniqueMuscleGroups = new Set(
       workouts.map(w => w.muscle_group).filter(Boolean)
     );
-    
+
     if (uniqueMuscleGroups.size >= 6) {
       achievements.push({
         icon: 'body',
@@ -458,9 +605,9 @@ const ProgressScreen = ({ navigation }) => {
   // Prepare chart data based on selected period and metric
   const getChartData = () => {
     const periodDays = timePeriods.find(p => p.id === selectedPeriod).days;
-    
+
     let dataPoints, groupBy, labelFormat;
-    
+
     if (periodDays <= 7) {
       dataPoints = 7;
       groupBy = 'day';
@@ -482,14 +629,14 @@ const ProgressScreen = ({ navigation }) => {
       groupBy = 'month';
       labelFormat = (date) => date.toLocaleDateString('en', { month: 'short' });
     }
-    
+
     const data = [];
     const labels = [];
     const now = new Date();
-    
+
     for (let i = 0; i < dataPoints; i++) {
       let startDate, endDate, label;
-      
+
       if (groupBy === 'day') {
         startDate = new Date(now);
         startDate.setDate(now.getDate() - (dataPoints - 1 - i));
@@ -511,7 +658,7 @@ const ProgressScreen = ({ navigation }) => {
         endDate.setHours(23, 59, 59, 999);
         label = labelFormat(startDate);
       }
-      
+
       const periodWorkouts = workouts.filter(w => {
         const workoutDate = new Date(w.date);
         return workoutDate >= startDate && workoutDate <= endDate;
@@ -520,14 +667,14 @@ const ProgressScreen = ({ navigation }) => {
       let value = 0;
       switch (selectedMetric) {
         case 'volume':
-          value = periodWorkouts.reduce((sum, w) => 
+          value = periodWorkouts.reduce((sum, w) =>
             sum + (w.total_volume || w.totalVolume || 0), 0);
           break;
         case 'workouts':
           value = periodWorkouts.length;
           break;
         case 'intensity':
-          value = periodWorkouts.length > 0 
+          value = periodWorkouts.length > 0
             ? periodWorkouts.reduce((sum, w) => sum + (w.intensity || 3), 0) / periodWorkouts.length
             : 0;
           break;
@@ -566,9 +713,9 @@ const ProgressScreen = ({ navigation }) => {
         animationType="fade"
         onRequestClose={() => setShowDetailModal(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
           onPress={() => setShowDetailModal(false)}
         >
           <View style={styles.modalContent}>
@@ -578,7 +725,7 @@ const ProgressScreen = ({ navigation }) => {
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.modalBody}>
               <View style={styles.prDetailRow}>
                 <Text style={styles.prDetailLabel}>Weight</Text>
@@ -603,7 +750,7 @@ const ProgressScreen = ({ navigation }) => {
                 </Text>
               </View>
             </View>
-            
+
             <TouchableOpacity style={styles.sharePRButton} onPress={() => {
               Share.share({
                 message: `🏆 New Personal Record!\n${selectedPR.exerciseName}: ${selectedPR.weight} lbs × ${selectedPR.reps} reps\n#FORTIS #PersonalRecord`,
@@ -634,8 +781,8 @@ const ProgressScreen = ({ navigation }) => {
 
         {/* Time Period Selector */}
         <View style={styles.periodSelectorContainer}>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.periodSelector}
             contentContainerStyle={styles.periodSelectorContent}
@@ -658,7 +805,7 @@ const ProgressScreen = ({ navigation }) => {
               </TouchableOpacity>
             ))}
           </ScrollView>
-          
+
           <LinearGradient
             colors={['transparent', '#0D1117']}
             start={{ x: 0, y: 0 }}
@@ -676,7 +823,7 @@ const ProgressScreen = ({ navigation }) => {
               Workouts Completed - {timePeriods.find(p => p.id === selectedPeriod)?.label}
             </Text>
           </View>
-          
+
           <View style={styles.subStats}>
             <View style={styles.subStat}>
               <Text style={styles.subStatValue}>{formatVolume(stats.totalVolume)}</Text>
@@ -705,10 +852,10 @@ const ProgressScreen = ({ navigation }) => {
                 ]}
                 onPress={() => setSelectedMetric(metric.id)}
               >
-                <Ionicons 
-                  name={metric.icon} 
-                  size={18} 
-                  color={selectedMetric === metric.id ? '#FFFFFF' : colors.textSecondary} 
+                <Ionicons
+                  name={metric.icon}
+                  size={18}
+                  color={selectedMetric === metric.id ? '#FFFFFF' : colors.textSecondary}
                 />
                 <Text style={[
                   styles.metricPillText,
@@ -757,235 +904,284 @@ const ProgressScreen = ({ navigation }) => {
           />
         </Card>
 
-{/* Muscle Group Distribution Chart */}
-<Card style={styles.chartCard}>
-  <View style={styles.chartHeader}>
-    <Text style={styles.chartTitle}>Muscle Group Distribution</Text>
-    <Text style={styles.chartPeriod}>
-      {timePeriods.find(p => p.id === selectedPeriod)?.label}
-    </Text>
-  </View>
+        {/* Muscle Group Distribution Chart */}
+        <Card style={styles.chartCard}>
+          <View style={styles.chartHeader}>
+            <Text style={styles.chartTitle}>Muscle Group Distribution</Text>
+            <Text style={styles.chartPeriod}>
+              {timePeriods.find(p => p.id === selectedPeriod)?.label}
+            </Text>
+          </View>
 
-  {Object.values(stats.muscleGroupDistribution).reduce((sum, count) => sum + count, 0) > 0 ? (
-    <>
-      <BarChart
-        data={{
-          labels: ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'],
-          datasets: [{
-            data: [
-              stats.muscleGroupDistribution.chest || 0,
-              stats.muscleGroupDistribution.back || 0,
-              stats.muscleGroupDistribution.shoulders || 0,
-              stats.muscleGroupDistribution.arms || 0,
-              stats.muscleGroupDistribution.legs || 0,
-              stats.muscleGroupDistribution.core || 0,
-            ].map(val => val || 0.1),
-          }]
-        }}
-        width={width - spacing.xl * 4}
-        height={270}
-        chartConfig={{
-          backgroundColor: colors.surface,
-          backgroundGradientFrom: colors.surface,
-          backgroundGradientTo: colors.surface,
-          decimalPlaces: 0,
-          color: (opacity = 1) => `rgba(255, 71, 87, ${opacity})`,
-          labelColor: (opacity = 1) => `rgba(139, 148, 158, ${opacity})`,
-          style: {
-            borderRadius: 16,
-          },
-          propsForBackgroundLines: {
-            strokeWidth: 1,
-            stroke: `rgba(255, 71, 87, 0.3)`,
-            strokeDasharray: '5,5',
-            strokeOpacity: 0.5,
-          },
-          barPercentage: 0.6,
-          fillShadowGradient: colors.primary,
-          fillShadowGradientOpacity: 1,
-          formatTopBarValue: (value) => {
-            return value < 1 ? '' : value.toString();
-          },
-        }}
-        fromZero={true}
-        style={styles.chart}
-        verticalLabelRotation={20}
-      />
-
-      {/* Training Breakdown */}
-      <View style={[styles.breakdown, { marginTop: -spacing.sm, paddingTop: spacing.sm }]}>
-        <Text style={styles.breakdownTitle}>Training Breakdown</Text>
-        <View style={styles.breakdownGrid}>
-          {Object.entries(stats.muscleGroupDistribution)
-            .filter(([group, count]) => count > 0)
-            .sort((a, b) => b[1] - a[1])
-            .map(([group, count]) => {
-              const totalWorkouts = Object.values(stats.muscleGroupDistribution).reduce((sum, c) => sum + c, 0);
-              const percentage = totalWorkouts > 0 ? Math.round((count / totalWorkouts) * 100) : 0;
-              
-              return (
-                <TouchableOpacity
-                  key={group}
-                  style={styles.breakdownItem}
-                  onPress={() => {
-                    // Navigate to filtered workouts (optional)
-                  }}
-                >
-                  <View style={styles.breakdownRow}>
-                    <View style={[
-                      styles.colorIndicator,
-                      { backgroundColor: colors.primary }
-                    ]} />
-                    <Text style={styles.breakdownLabel}>
-                      {group.charAt(0).toUpperCase() + group.slice(1)}
-                    </Text>
-                    <Text style={styles.breakdownValue}>{count}</Text>
-                    <Text style={styles.breakdownPercentage}>
-                      {percentage}%
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-        </View>
-        
-        {/* Untrained muscle groups */}
-        {(() => {
-          const allGroups = ['chest', 'back', 'shoulders', 'arms', 'legs', 'core'];
-          const untrainedGroups = allGroups.filter(group => 
-            !stats.muscleGroupDistribution[group] || stats.muscleGroupDistribution[group] === 0
-          );
-          
-          if (untrainedGroups.length > 0 && untrainedGroups.length < 6) {
-            return (
-              <View style={[styles.untrainedSection, { marginTop: spacing.xs, paddingTop: spacing.xs }]}>
-                <Text style={styles.untrainedTitle}>Not Trained This Period</Text>
-                <View style={styles.untrainedList}>
-                  {untrainedGroups.map(group => (
-                    <View key={group} style={styles.untrainedItem}>
-                      <View style={[
-                        styles.colorIndicator,
-                        { backgroundColor: colors.textTertiary }
-                      ]} />
-                      <Text style={styles.untrainedLabel}>
-                        {group.charAt(0).toUpperCase() + group.slice(1)}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            );
-          }
-          return null;
-        })()}
-      </View>
-
-      {/* Training Insights */}
-        <View style={[styles.insights, { marginTop: spacing.xs, paddingTop: spacing.xs }]}>
-        <Text style={styles.insightsTitle}>Training Insights</Text>
-        {(() => {
-          const trainedEntries = Object.entries(stats.muscleGroupDistribution)
-            .filter(([group, count]) => count > 0);
-          const allGroups = ['chest', 'back', 'shoulders', 'arms', 'legs', 'core'];
-          const untrainedGroups = allGroups.filter(group => 
-            !stats.muscleGroupDistribution[group] || stats.muscleGroupDistribution[group] === 0
-          );
-          
-          const totalWorkouts = Object.values(stats.muscleGroupDistribution).reduce((sum, c) => sum + c, 0);
-          
-          return (
+          {Object.values(stats.muscleGroupDistribution).reduce((sum, count) => sum + count, 0) > 0 ? (
             <>
-              {trainedEntries.length > 0 && (() => {
-                const mostTrained = trainedEntries.sort((a, b) => b[1] - a[1])[0];
-                return (
-                  <View style={styles.insightItem}>
-                    <Ionicons name="trending-up" size={16} color={colors.success} />
-                    <Text style={styles.insightText}>
-                      <Text style={styles.insightHighlight}>
-                        {mostTrained[0].charAt(0).toUpperCase() + mostTrained[0].slice(1)}
-                      </Text>
-                      {' '}is your most trained muscle group ({mostTrained[1]} workouts, {Math.round((mostTrained[1] / totalWorkouts) * 100)}%)
-                    </Text>
-                  </View>
-                );
-              })()}
-              
-              {trainedEntries.length > 1 && (() => {
-                const sortedTrained = trainedEntries.sort((a, b) => b[1] - a[1]);
-                const highest = sortedTrained[0][1];
-                const lowest = sortedTrained[sortedTrained.length - 1][1];
-                const ratio = highest / lowest;
-                
-                if (ratio > 3) {
-                  return (
-                    <View style={styles.insightItem}>
-                      <Ionicons name="warning" size={16} color={colors.warning} />
-                      <Text style={styles.insightText}>
-                        Your training shows some imbalance. Consider focusing more on{' '}
-                        <Text style={styles.insightHighlight}>
-                          {sortedTrained[sortedTrained.length - 1][0]}
-                        </Text>
-                        {' '}exercises
-                      </Text>
-                    </View>
-                  );
-                } else if (ratio <= 1.5) {
-                  return (
-                    <View style={styles.insightItem}>
-                      <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                      <Text style={styles.insightText}>
-                        Great balance! Your training is well-distributed across muscle groups
-                      </Text>
-                    </View>
-                  );
-                }
-                return null;
-              })()}
-              
-              {untrainedGroups.length > 0 && untrainedGroups.length < 6 && (
-                <View style={styles.insightItem}>
-                  <Ionicons name="information-circle" size={16} color={colors.info} />
-                  <Text style={styles.insightText}>
-                    Consider adding{' '}
-                    <Text style={styles.insightHighlight}>
-                      {untrainedGroups.slice(0, 2).map(group => 
-                        group.charAt(0).toUpperCase() + group.slice(1)
-                      ).join(' and ')}
-                    </Text>
-                    {' '}exercises for complete muscle development
-                  </Text>
+              <BarChart
+                data={{
+                  labels: ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'],
+                  datasets: [{
+                    data: [
+                      stats.muscleGroupDistribution.chest || 0,
+                      stats.muscleGroupDistribution.back || 0,
+                      stats.muscleGroupDistribution.shoulders || 0,
+                      stats.muscleGroupDistribution.arms || 0,
+                      stats.muscleGroupDistribution.legs || 0,
+                      stats.muscleGroupDistribution.core || 0,
+                    ].map(val => val || 0.1),
+                  }]
+                }}
+                width={width - spacing.xl * 4}
+                height={270}
+                chartConfig={{
+                  backgroundColor: colors.surface,
+                  backgroundGradientFrom: colors.surface,
+                  backgroundGradientTo: colors.surface,
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(255, 71, 87, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(139, 148, 158, ${opacity})`,
+                  style: {
+                    borderRadius: 16,
+                  },
+                  propsForBackgroundLines: {
+                    strokeWidth: 1,
+                    stroke: `rgba(255, 71, 87, 0.3)`,
+                    strokeDasharray: '5,5',
+                    strokeOpacity: 0.5,
+                  },
+                  barPercentage: 0.6,
+                  fillShadowGradient: colors.primary,
+                  fillShadowGradientOpacity: 1,
+                  formatTopBarValue: (value) => {
+                    return value < 1 ? '' : value.toString();
+                  },
+                }}
+                fromZero={true}
+                style={styles.chart}
+                verticalLabelRotation={20}
+              />
+
+              {/* Training Breakdown */}
+              <View style={[styles.breakdown, { marginTop: -spacing.sm, paddingTop: spacing.sm }]}>
+                <Text style={styles.breakdownTitle}>Training Breakdown</Text>
+                <View style={styles.breakdownGrid}>
+                  {Object.entries(stats.muscleGroupDistribution)
+                    .filter(([group, count]) => count > 0)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([group, count]) => {
+                      const totalWorkouts = Object.values(stats.muscleGroupDistribution).reduce((sum, c) => sum + c, 0);
+                      const percentage = totalWorkouts > 0 ? Math.round((count / totalWorkouts) * 100) : 0;
+
+                      return (
+                        <TouchableOpacity
+                          key={group}
+                          style={styles.breakdownItem}
+                          onPress={() => {
+                            // Navigate to filtered workouts (optional)
+                          }}
+                        >
+                          <View style={styles.breakdownRow}>
+                            <View style={[
+                              styles.colorIndicator,
+                              { backgroundColor: colors.primary }
+                            ]} />
+                            <Text style={styles.breakdownLabel}>
+                              {group.charAt(0).toUpperCase() + group.slice(1)}
+                            </Text>
+                            <Text style={styles.breakdownValue}>{count}</Text>
+                            <Text style={styles.breakdownPercentage}>
+                              {percentage}%
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
                 </View>
-              )}
-              
-              {totalWorkouts >= 10 && (
-                <View style={styles.insightItem}>
-                  <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                  <Text style={styles.insightText}>
-                    Excellent consistency! You've completed {totalWorkouts} workouts this period
-                  </Text>
-                </View>
-              )}
+
+                {/* Untrained muscle groups */}
+                {(() => {
+                  const allGroups = ['chest', 'back', 'shoulders', 'arms', 'legs', 'core'];
+                  const untrainedGroups = allGroups.filter(group =>
+                    !stats.muscleGroupDistribution[group] || stats.muscleGroupDistribution[group] === 0
+                  );
+
+                  if (untrainedGroups.length > 0 && untrainedGroups.length < 6) {
+                    return (
+                      <View style={[styles.untrainedSection, { marginTop: spacing.xs, paddingTop: spacing.xs }]}>
+                        <Text style={styles.untrainedTitle}>Not Trained This Period</Text>
+                        <View style={styles.untrainedList}>
+                          {untrainedGroups.map(group => (
+                            <View key={group} style={styles.untrainedItem}>
+                              <View style={[
+                                styles.colorIndicator,
+                                { backgroundColor: colors.textTertiary }
+                              ]} />
+                              <Text style={styles.untrainedLabel}>
+                                {group.charAt(0).toUpperCase() + group.slice(1)}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    );
+                  }
+                  return null;
+                })()}
+              </View>
+
+              {/* Training Insights */}
+              <View style={[styles.insights, { marginTop: spacing.xs, paddingTop: spacing.xs }]}>
+                <Text style={styles.insightsTitle}>Training Insights</Text>
+                {(() => {
+                  const trainedEntries = Object.entries(stats.muscleGroupDistribution)
+                    .filter(([group, count]) => count > 0);
+                  const allGroups = ['chest', 'back', 'shoulders', 'arms', 'legs', 'core'];
+                  const untrainedGroups = allGroups.filter(group =>
+                    !stats.muscleGroupDistribution[group] || stats.muscleGroupDistribution[group] === 0
+                  );
+
+                  const totalWorkouts = Object.values(stats.muscleGroupDistribution).reduce((sum, c) => sum + c, 0);
+
+                  return (
+                    <>
+                      {trainedEntries.length > 0 && (() => {
+                        const mostTrained = trainedEntries.sort((a, b) => b[1] - a[1])[0];
+                        return (
+                          <View style={styles.insightItem}>
+                            <Ionicons name="trending-up" size={16} color={colors.success} />
+                            <Text style={styles.insightText}>
+                              <Text style={styles.insightHighlight}>
+                                {mostTrained[0].charAt(0).toUpperCase() + mostTrained[0].slice(1)}
+                              </Text>
+                              {' '}is your most trained muscle group ({mostTrained[1]} workouts, {Math.round((mostTrained[1] / totalWorkouts) * 100)}%)
+                            </Text>
+                          </View>
+                        );
+                      })()}
+
+                      {trainedEntries.length > 1 && (() => {
+                        const sortedTrained = trainedEntries.sort((a, b) => b[1] - a[1]);
+                        const highest = sortedTrained[0][1];
+                        const lowest = sortedTrained[sortedTrained.length - 1][1];
+                        const ratio = highest / lowest;
+                        const trainedCount = trainedEntries.length;
+                        const totalGroups = 6;
+                        const coverage = trainedCount / totalGroups;
+
+                        // Improved balance analysis considering both ratio and coverage
+                        if (trainedCount < 3) {
+                          return (
+                            <View style={styles.insightItem}>
+                              <Ionicons name="warning" size={16} color={colors.warning} />
+                              <Text style={styles.insightText}>
+                                Limited muscle group variety. Try adding exercises for more complete development
+                              </Text>
+                            </View>
+                          );
+                        } else if (ratio > 4) {
+                          return (
+                            <View style={styles.insightItem}>
+                              <Ionicons name="warning" size={16} color={colors.warning} />
+                              <Text style={styles.insightText}>
+                                Significant training imbalance detected. Consider focusing more on{' '}
+                                <Text style={styles.insightHighlight}>
+                                  {sortedTrained[sortedTrained.length - 1][0]}
+                                </Text>
+                                {' '}exercises
+                              </Text>
+                            </View>
+                          );
+                        } else if (ratio > 2.5) {
+                          return (
+                            <View style={styles.insightItem}>
+                              <Ionicons name="information-circle" size={16} color={colors.info} />
+                              <Text style={styles.insightText}>
+                                Some training imbalance. Try to balance{' '}
+                                <Text style={styles.insightHighlight}>
+                                  {sortedTrained[0][0]}
+                                </Text>
+                                {' '}with more{' '}
+                                <Text style={styles.insightHighlight}>
+                                  {sortedTrained[sortedTrained.length - 1][0]}
+                                </Text>
+                                {' '}work
+                              </Text>
+                            </View>
+                          );
+                        } else if (trainedCount >= 5 && ratio <= 2) {
+                          return (
+                            <View style={styles.insightItem}>
+                              <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                              <Text style={styles.insightText}>
+                                Excellent balance! Your training covers {trainedCount} muscle groups with good distribution
+                              </Text>
+                            </View>
+                          );
+                        } else if (trainedCount >= 4 && ratio <= 2.5) {
+                          return (
+                            <View style={styles.insightItem}>
+                              <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                              <Text style={styles.insightText}>
+                                Good balance across {trainedCount} muscle groups. Consider adding more variety for complete development
+                              </Text>
+                            </View>
+                          );
+                        } else if (trainedCount >= 3 && ratio <= 3) {
+                          return (
+                            <View style={styles.insightItem}>
+                              <Ionicons name="trending-up" size={16} color={colors.info} />
+                              <Text style={styles.insightText}>
+                                Decent balance across {trainedCount} muscle groups. Room for improvement in variety and distribution
+                              </Text>
+                            </View>
+                          );
+                        }
+
+                        return null;
+                      })()}
+
+                      {untrainedGroups.length > 0 && untrainedGroups.length < 6 && (
+                        <View style={styles.insightItem}>
+                          <Ionicons name="information-circle" size={16} color={colors.info} />
+                          <Text style={styles.insightText}>
+                            Consider adding{' '}
+                            <Text style={styles.insightHighlight}>
+                              {untrainedGroups.slice(0, 2).map(group =>
+                                group.charAt(0).toUpperCase() + group.slice(1)
+                              ).join(' and ')}
+                            </Text>
+                            {' '}exercises for complete muscle development
+                          </Text>
+                        </View>
+                      )}
+
+                      {totalWorkouts >= 10 && (
+                        <View style={styles.insightItem}>
+                          <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                          <Text style={styles.insightText}>
+                            Excellent consistency! You've completed {totalWorkouts} workouts this period
+                          </Text>
+                        </View>
+                      )}
+                    </>
+                  );
+                })()}
+              </View>
             </>
-          );
-        })()}
-      </View>
-    </>
-  ) : (
-    <View style={styles.emptyState}>
-      <Ionicons name="body" size={48} color={colors.textTertiary} />
-      <Text style={styles.emptyTitle}>No workout data yet</Text>
-      <Text style={styles.emptySubtitle}>
-        Complete some workouts to see your muscle group distribution
-      </Text>
-    </View>
-  )}
-</Card>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="body" size={48} color={colors.textTertiary} />
+              <Text style={styles.emptyTitle}>No workout data yet</Text>
+              <Text style={styles.emptySubtitle}>
+                Complete some workouts to see your muscle group distribution
+              </Text>
+            </View>
+          )}
+        </Card>
 
         {/* Personal Records Section */}
         <View style={styles.prSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Personal Records</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.viewAllButton}
               onPress={() => navigation.navigate('PersonalRecords')}
             >
@@ -993,7 +1189,7 @@ const ProgressScreen = ({ navigation }) => {
               <Ionicons name="chevron-forward" size={16} color={colors.primary} />
             </TouchableOpacity>
           </View>
-          
+
           {Object.keys(personalRecords).length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.prList}>
@@ -1002,11 +1198,11 @@ const ProgressScreen = ({ navigation }) => {
                     // Sort by date (most recent first), then by volume
                     const dateA = new Date(a[1].date || 0);
                     const dateB = new Date(b[1].date || 0);
-                    
+
                     if (dateA.getTime() !== dateB.getTime()) {
                       return dateB.getTime() - dateA.getTime();
                     }
-                    
+
                     const volumeA = a[1].volume || (a[1].weight * a[1].reps) || 0;
                     const volumeB = b[1].volume || (b[1].weight * b[1].reps) || 0;
                     return volumeB - volumeA;
@@ -1017,8 +1213,8 @@ const ProgressScreen = ({ navigation }) => {
                       key={exerciseId}
                       style={[styles.prItem, index === 0 && styles.prItemTop]}
                       onPress={() => {
-                        setSelectedPR({ 
-                          ...record, 
+                        setSelectedPR({
+                          ...record,
                           exerciseName: exerciseId.replace(/_/g, ' ')
                             .split(' ')
                             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -1028,10 +1224,10 @@ const ProgressScreen = ({ navigation }) => {
                       }}
                     >
                       <View style={styles.prIconSmall}>
-                        <Ionicons 
-                          name={index === 0 ? "trophy" : "medal"} 
-                          size={16} 
-                          color={index === 0 ? colors.warning : colors.primary} 
+                        <Ionicons
+                          name={index === 0 ? "trophy" : "medal"}
+                          size={16}
+                          color={index === 0 ? colors.warning : colors.primary}
                         />
                       </View>
                       <View style={styles.prInfo}>
@@ -1046,9 +1242,9 @@ const ProgressScreen = ({ navigation }) => {
                           {record.reps} {exerciseId.toLowerCase().includes('plank') && record.reps > 30 ? 'sec' : 'reps'}
                         </Text>
                         <Text style={styles.prDateSmall}>
-                          {new Date(record.date || Date.now()).toLocaleDateString('en', { 
-                            month: 'short', 
-                            day: 'numeric' 
+                          {new Date(record.date || Date.now()).toLocaleDateString('en', {
+                            month: 'short',
+                            day: 'numeric'
                           })}
                         </Text>
                       </View>
@@ -1062,7 +1258,7 @@ const ProgressScreen = ({ navigation }) => {
               </View>
             </ScrollView>
           ) : (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.emptyCard}
               onPress={() => navigation.navigate('Workouts')}
             >
@@ -1096,7 +1292,7 @@ const ProgressScreen = ({ navigation }) => {
                 </Card>
               ))}
             </ScrollView>
-            
+
             <LinearGradient
               colors={['transparent', '#0D1117']}
               start={{ x: 0, y: 0 }}
@@ -1547,7 +1743,7 @@ const styles = StyleSheet.create({
     width: 35,
     textAlign: 'right',
   },
-  
+
   insights: {
     marginTop: spacing.lg,
     paddingTop: spacing.lg,
