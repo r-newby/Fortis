@@ -279,7 +279,7 @@ const WorkoutsScreen = ({ navigation }) => {
                         {workout.muscle_group
                           ? workout.muscle_group.charAt(0).toUpperCase() +
                           workout.muscle_group.slice(1).replace('_', ' ') + ' Workout'
-                          : 'Unnamed Workout'}
+                          : 'Custom Workout'}
                       </Text>
                       <Text style={styles.workoutDate}>
                         {new Date(workout.date).toLocaleDateString()}
