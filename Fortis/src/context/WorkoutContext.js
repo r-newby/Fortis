@@ -117,11 +117,27 @@ export const WorkoutProvider = ({ children }) => {
           plannedSets: 3,
           plannedReps: 10,
           completedSets: [],
+          equipment: exercise.equipment || '', // Store equipment info
         },
       ],
     };
 
     setCurrentWorkout(updatedWorkout);
+  };
+
+  // Removes an exercise from the current workout
+  const removeExerciseFromWorkout = (exerciseId) => {
+    if (!currentWorkout) return;
+
+    const updatedWorkout = {
+      ...currentWorkout,
+      exercises: currentWorkout.exercises.filter(
+        (ex) => ex.exerciseId !== exerciseId
+      ),
+    };
+
+    setCurrentWorkout(updatedWorkout);
+    console.log(`Removed exercise ${exerciseId} from workout`);
   };
 
   // Completes the current workout and returns summary data
@@ -166,6 +182,7 @@ export const WorkoutProvider = ({ children }) => {
     startNewWorkout,
     addSet,
     addExerciseToWorkout,
+    removeExerciseFromWorkout,
     completeWorkout,
     lastCompletedWorkout
   };

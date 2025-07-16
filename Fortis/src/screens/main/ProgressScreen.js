@@ -60,6 +60,7 @@ const ProgressScreen = ({ navigation }) => {
     calculateStats();
   }, [workouts, selectedPeriod, selectedMetric]);
 
+
   const calculateStats = async () => {
     const periodDays = timePeriods.find(p => p.id === selectedPeriod).days;
     const cutoffDate = new Date();

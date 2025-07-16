@@ -49,7 +49,7 @@ export const AppProvider = ({ children }) => {
   const calculatePersonalRecords = async (userId) => {
     try {
       console.log('Calculating personal records for user:', userId);
-      
+
       // Get all workout exercises with exercise details for this user
       const { data: workoutExercises, error } = await supabase
         .from('workout_exercises')
@@ -77,7 +77,7 @@ export const AppProvider = ({ children }) => {
       console.log('Found workout exercises:', workoutExercises?.length || 0);
 
       // Sort by date manually after fetching (since we can't order by joined table columns easily)
-      const sortedWorkoutExercises = workoutExercises?.sort((a, b) => 
+      const sortedWorkoutExercises = workoutExercises?.sort((a, b) =>
         new Date(a.workouts.date) - new Date(b.workouts.date)
       ) || [];
 
@@ -87,7 +87,7 @@ export const AppProvider = ({ children }) => {
       sortedWorkoutExercises?.forEach(we => {
         const exerciseName = we.exercises?.name;
         const exerciseDetails = we.exercises;
-        
+
         if (!exerciseName || !exerciseDetails) return;
 
         // Use actual values if available, fallback to planned values
@@ -155,7 +155,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  
+
   const loadAppData = async () => {
     try {
       setIsLoading(true);
@@ -199,18 +199,22 @@ export const AppProvider = ({ children }) => {
       const { data: supabaseWorkouts, error: workoutError } = await supabase
         .from('workouts')
         .select(`
-          *,
-          workout_exercises (
-            actual_reps,
-            actual_weight,
-            sets,
-            reps,
-            weight,
-            exercises (
-              name
-            )
-          )
-        `)
+    *,
+    workout_exercises (
+      actual_reps,
+      actual_weight,
+      sets,
+      reps,
+      weight,
+      exercises (
+        id,
+        name,
+        body_part,
+        target,
+        equipment
+      )
+    )
+  `)
         .eq('user_id', authUser.id)
         .order('date', { ascending: false });
 
@@ -274,13 +278,13 @@ export const AppProvider = ({ children }) => {
       const updatedWorkouts = [...workoutsArray, workout];
       await AsyncStorage.setItem(key, JSON.stringify(updatedWorkouts));
       setWorkouts(updatedWorkouts);
-      
+
       // Recalculate PRs after saving new workout
       if (user?.id) {
         const updatedPRs = await calculatePersonalRecords(user.id);
         setPersonalRecords(updatedPRs);
       }
-      
+
       return true;
     } catch (error) {
       console.error('Failed to save workout:', error);
@@ -354,36 +358,36 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-const getProgressionHistory = async (exerciseId) => {
-  if (!user) return [];
+  const getProgressionHistory = async (exerciseId) => {
+    if (!user) return [];
 
-  const { data, error } = await supabase
-    .from('workout_exercises')
-    .select(`
+    const { data, error } = await supabase
+      .from('workout_exercises')
+      .select(`
       actual_reps,
       actual_weight,
       created_at,
       workout_id,
       workouts (intensity, user_id)
     `)
-    .eq('exercise_id', exerciseId)
-    .gte('created_at', new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString())
-    .order('created_at', { ascending: false });
+      .eq('exercise_id', exerciseId)
+      .gte('created_at', new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString())
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Failed to get progression history:', error);
-    return [];
-  }
+    if (error) {
+      console.error('Failed to get progression history:', error);
+      return [];
+    }
 
-  return data
-    .filter((row) => row.workouts?.user_id === user.id)
-    .map((row) => ({
-      date: row.created_at,
-      reps: row.actual_reps,
-      weight: row.actual_weight,
-      intensity: row.workouts?.intensity || 3,
-    }));
-};
+    return data
+      .filter((row) => row.workouts?.user_id === user.id)
+      .map((row) => ({
+        date: row.created_at,
+        reps: row.actual_reps,
+        weight: row.actual_weight,
+        intensity: row.workouts?.intensity || 3,
+      }));
+  };
 
 
   const completeOnboarding = () => {
@@ -416,7 +420,7 @@ const getProgressionHistory = async (exerciseId) => {
     getProgressionHistory: getPreviousWorkout,
     // Expose the PR calculation function for manual recalculation if needed
     recalculatePersonalRecords: () => user?.id ? calculatePersonalRecords(user.id).then(setPersonalRecords) : null,
-    needsReload, 
+    needsReload,
     setNeedsReload,
   };
 

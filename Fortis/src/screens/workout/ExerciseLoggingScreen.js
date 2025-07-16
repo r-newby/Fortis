@@ -46,6 +46,7 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     completeWorkout,
     startNewWorkout,
     addExerciseToWorkout,
+    removeExerciseFromWorkout, // Assuming this function exists in your context
     lastCompletedWorkout
   } = useWorkout();
   const { user, reloadData, setNeedsReload } = useApp();
@@ -130,14 +131,54 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
+  // Check if an exercise is bodyweight based on equipment
+  const isBodyweightExercise = (exercise) => {
+    if (!exercise?.equipment) return false;
+    const equipment = exercise.equipment.toLowerCase();
+    return equipment.includes('bodyweight') || 
+           equipment.includes('body weight') || 
+           equipment.includes('assisted') ||
+           equipment === 'none';
+  };
+
   // Adds a new exercise to the workout and clears search
   const handleSelectExercise = (exercise) => {
     addExerciseToWorkout({
       exerciseId: exercise.id,
       exerciseName: exercise.name,
+      equipment: exercise.equipment, // Store equipment info for bodyweight detection
     });
     setSearchQuery('');
     setSearchResults([]);
+  };
+
+  // Removes an exercise from the workout and cleans up local state
+  const handleRemoveExercise = (exerciseId, exerciseName) => {
+    Alert.alert(
+      'Remove Exercise',
+      `Are you sure you want to remove "${toTitleCase(exerciseName)}" from your workout?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            // Remove from workout context
+            if (removeExerciseFromWorkout) {
+              removeExerciseFromWorkout(exerciseId);
+            }
+            
+            // Clean up local exercise logs
+            const updatedLogs = { ...exerciseLogs };
+            delete updatedLogs[exerciseId];
+            setExerciseLogs(updatedLogs);
+          },
+        },
+      ]
+    );
   };
 
   // Updates local input state and context when reps or weight changes
@@ -158,13 +199,22 @@ const ExerciseLoggingScreen = ({ navigation }) => {
 
   // Adds a new empty set row for an exercise
   const handleAddSet = (exerciseId) => {
+    // Check if this is a bodyweight exercise to set default weight
+    const exercise = currentWorkout?.exercises.find(ex => ex.exerciseId === exerciseId);
+    const isBodyweight = isBodyweightExercise(exercise);
+    
     setExerciseLogs({
       ...exerciseLogs,
       [exerciseId]: [
         ...(exerciseLogs[exerciseId] || []),
-        { reps: '', weight: '' },
+        { reps: '', weight: isBodyweight ? '0' : '' },
       ],
     });
+
+    // If bodyweight, automatically add a set with 0 weight
+    if (isBodyweight) {
+      addSet(exerciseId, { weight: 0 });
+    }
   };
 
   // Handles full workout submission: saves sets and inserts into Supabase
@@ -174,9 +224,13 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     // Sync all input sets to context
     for (const exerciseId in exerciseLogs) {
       const logs = exerciseLogs[exerciseId];
+      const exercise = currentWorkout?.exercises.find(ex => ex.exerciseId === exerciseId);
+      const isBodyweight = isBodyweightExercise(exercise);
+      
       logs.forEach(set => {
         const reps = parseInt(set.reps);
-        const weight = parseFloat(set.weight);
+        const weight = isBodyweight ? 0 : parseFloat(set.weight); // Force 0 for bodyweight
+        
         if (!isNaN(reps) && !isNaN(weight)) {
           addSet(exerciseId, { reps, weight });
         }
@@ -253,11 +307,6 @@ navigation.navigate('Workouts', {
 setTimeout(() => {
   setNeedsReload(true);
 }, 250);
-
-
-
-
-
   };
 
   return (
@@ -284,37 +333,55 @@ setTimeout(() => {
           </View>
         )}
 
-        {currentWorkout?.exercises.map((exercise) => (
-          <View key={exercise.exerciseId} style={styles.exerciseBlock}>
-            <Text style={styles.exerciseTitle}>{toTitleCase(exercise.exerciseName)}</Text>
-            {(exerciseLogs[exercise.exerciseId] || []).map((set, index) => (
-              <View key={index} style={styles.setRow}>
-                <View style={styles.setLabel}>
-                  <Text style={styles.setText}>Set {index + 1}:</Text>
-                </View>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Reps"
-                  placeholderTextColor="#666666"
-                  keyboardType="numeric"
-                  value={set.reps}
-                  onChangeText={(val) => handleInputChange(exercise.exerciseId, index, 'reps', val)}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Weight"
-                  placeholderTextColor="#666666"
-                  keyboardType="numeric"
-                  value={set.weight}
-                  onChangeText={(val) => handleInputChange(exercise.exerciseId, index, 'weight', val)}
-                />
+        {currentWorkout?.exercises.map((exercise) => {
+          const isBodyweight = isBodyweightExercise(exercise);
+          
+          return (
+            <View key={exercise.exerciseId} style={styles.exerciseBlock}>
+              <View style={styles.exerciseHeader}>
+                <Text style={styles.exerciseTitle}>{toTitleCase(exercise.exerciseName)}</Text>
+                <TouchableOpacity 
+                  onPress={() => handleRemoveExercise(exercise.exerciseId, exercise.exerciseName)}
+                  style={styles.removeButton}
+                >
+                  <Text style={styles.removeButtonText}>✕</Text>
+                </TouchableOpacity>
               </View>
-            ))}
-            <TouchableOpacity onPress={() => handleAddSet(exercise.exerciseId)}>
-              <Text style={styles.addSet}>+ Add Set</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+              {(exerciseLogs[exercise.exerciseId] || []).map((set, index) => (
+                <View key={index} style={styles.setRow}>
+                  <View style={styles.setLabel}>
+                    <Text style={styles.setText}>Set {index + 1}:</Text>
+                  </View>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Reps"
+                    placeholderTextColor="#666666"
+                    keyboardType="numeric"
+                    value={set.reps}
+                    onChangeText={(val) => handleInputChange(exercise.exerciseId, index, 'reps', val)}
+                  />
+                  {isBodyweight ? (
+                    <View style={styles.bodyweightLabel}>
+                      <Text style={styles.bodyweightText}>Bodyweight</Text>
+                    </View>
+                  ) : (
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Weight"
+                      placeholderTextColor="#666666"
+                      keyboardType="numeric"
+                      value={set.weight}
+                      onChangeText={(val) => handleInputChange(exercise.exerciseId, index, 'weight', val)}
+                    />
+                  )}
+                </View>
+              ))}
+              <TouchableOpacity onPress={() => handleAddSet(exercise.exerciseId)}>
+                <Text style={styles.addSet}>+ Add Set</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
 
         <GradientButton onPress={handleSubmit} title="Save Workout" style={styles.saveButton} />
       </ScrollView>
@@ -368,11 +435,31 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     paddingVertical: spacing.lg,
   },
+  exerciseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+  },
   exerciseTitle: {
     ...typography.h2,
     color: colors.textPrimary,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
+    flex: 1,
+  },
+  removeButton: {
+    backgroundColor: '#FF4444',
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: spacing.sm,
+  },
+  removeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   setRow: {
     flexDirection: 'row',
@@ -401,6 +488,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333333',
     marginBottom: spacing.small,
+  },
+  bodyweightLabel: {
+    flex: 1,
+    backgroundColor: '#2A2A2A',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#444444',
+    marginBottom: spacing.small,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bodyweightText: {
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    fontSize: 14,
   },
   addSet: {
     color: colors.primary,
