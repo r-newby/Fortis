@@ -8,6 +8,9 @@ import {
   StyleSheet,
   Alert,
   SafeAreaView,
+  Image,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { supabase } from '../../supabase';
 import GradientButton from '../../components/common/GradientButton';
@@ -18,6 +21,7 @@ import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 
+const { width: screenWidth } = Dimensions.get('window');
 
 // Utility to format exercise names in Title Case
 const toTitleCase = (str) => {
@@ -46,7 +50,7 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     completeWorkout,
     startNewWorkout,
     addExerciseToWorkout,
-    removeExerciseFromWorkout, // Assuming this function exists in your context
+    removeExerciseFromWorkout,
     lastCompletedWorkout
   } = useWorkout();
   const { user, reloadData, setNeedsReload } = useApp();
@@ -54,6 +58,9 @@ const ExerciseLoggingScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [exerciseLogs, setExerciseLogs] = useState({});
+  const [selectedGif, setSelectedGif] = useState(null);
+  const [showGifModal, setShowGifModal] = useState(false);
+  const [expandedExercises, setExpandedExercises] = useState(new Set());
 
   // If there's no active workout, start a custom one
   useEffect(() => {
@@ -62,7 +69,7 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     }
   }, []);
 
-  // Fetch exercises from Supabase matching the search query
+  // Fetch exercises from Supabase matching the search query (now includes gif_url)
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setSearchResults([]);
@@ -76,7 +83,8 @@ const ExerciseLoggingScreen = ({ navigation }) => {
         // Split search query into words for multi-field search
         const searchTerms = searchQuery.toLowerCase().trim().split(' ');
 
-        let query = supabase.from('exercises').select('*');
+        // Include gif_url in the select
+        let query = supabase.from('exercises').select('*, gif_url');
 
         // Build OR conditions to search across all fields for any term
         const orConditions = [];
@@ -146,10 +154,28 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     addExerciseToWorkout({
       exerciseId: exercise.id,
       exerciseName: exercise.name,
-      equipment: exercise.equipment, // Store equipment info for bodyweight detection
+      equipment: exercise.equipment,
+      gifUrl: exercise.gif_url, // Store the GIF URL
     });
     setSearchQuery('');
     setSearchResults([]);
+  };
+
+  // Toggle exercise demonstration visibility
+  const toggleExerciseDemo = (exerciseId) => {
+    const newExpanded = new Set(expandedExercises);
+    if (newExpanded.has(exerciseId)) {
+      newExpanded.delete(exerciseId);
+    } else {
+      newExpanded.add(exerciseId);
+    }
+    setExpandedExercises(newExpanded);
+  };
+
+  // Open GIF in full screen modal
+  const openGifModal = (gifUrl, exerciseName) => {
+    setSelectedGif({ url: gifUrl, name: exerciseName });
+    setShowGifModal(true);
   };
 
   // Removes an exercise from the workout and cleans up local state
@@ -175,6 +201,11 @@ const ExerciseLoggingScreen = ({ navigation }) => {
             const updatedLogs = { ...exerciseLogs };
             delete updatedLogs[exerciseId];
             setExerciseLogs(updatedLogs);
+            
+            // Remove from expanded exercises
+            const newExpanded = new Set(expandedExercises);
+            newExpanded.delete(exerciseId);
+            setExpandedExercises(newExpanded);
           },
         },
       ]
@@ -229,7 +260,7 @@ const ExerciseLoggingScreen = ({ navigation }) => {
       
       logs.forEach(set => {
         const reps = parseInt(set.reps);
-        const weight = isBodyweight ? 0 : parseFloat(set.weight); // Force 0 for bodyweight
+        const weight = isBodyweight ? 0 : parseFloat(set.weight);
         
         if (!isNaN(reps) && !isNaN(weight)) {
           addSet(exerciseId, { reps, weight });
@@ -291,22 +322,21 @@ const ExerciseLoggingScreen = ({ navigation }) => {
 
     console.log('All exercises saved with actual values for PR calculation');
     console.log('Navigating to WorkoutSummary with:', finished);
-  
 
-    
     setSearchQuery('');
     setSearchResults([]);
     setExerciseLogs({});
+    setExpandedExercises(new Set());
+    
     console.log('NAVIGATION STATE:', JSON.stringify(navigation.getState(), null, 2));
-navigation.navigate('Workouts', {
-  screen: 'WorkoutSummary',
-  params: { workout: finished },
-});
+    navigation.navigate('Workouts', {
+      screen: 'WorkoutSummary',
+      params: { workout: finished },
+    });
 
-
-setTimeout(() => {
-  setNeedsReload(true);
-}, 250);
+    setTimeout(() => {
+      setNeedsReload(true);
+    }, 250);
   };
 
   return (
@@ -325,8 +355,21 @@ setTimeout(() => {
             {searchResults.map((exercise) => (
               <TouchableOpacity key={exercise.id} onPress={() => handleSelectExercise(exercise)}>
                 <Card style={styles.card}>
-                  <Text style={styles.exerciseName}>{toTitleCase(exercise.name)}</Text>
-                  <Text style={styles.exerciseDetails}>{exercise.target} | {exercise.equipment}</Text>
+                  <View style={styles.searchResultContent}>
+                    <View style={styles.searchResultInfo}>
+                      <Text style={styles.exerciseName}>{toTitleCase(exercise.name)}</Text>
+                      <Text style={styles.exerciseDetails}>{exercise.target} | {exercise.equipment}</Text>
+                    </View>
+                    {exercise.gif_url && (
+                      <View style={styles.searchResultGif}>
+                        <Image
+                          source={{ uri: exercise.gif_url }}
+                          style={styles.searchGifThumbnail}
+                          resizeMode="cover"
+                        />
+                      </View>
+                    )}
+                  </View>
                 </Card>
               </TouchableOpacity>
             ))}
@@ -335,18 +378,51 @@ setTimeout(() => {
 
         {currentWorkout?.exercises.map((exercise) => {
           const isBodyweight = isBodyweightExercise(exercise);
+          const isExpanded = expandedExercises.has(exercise.exerciseId);
           
           return (
             <View key={exercise.exerciseId} style={styles.exerciseBlock}>
               <View style={styles.exerciseHeader}>
                 <Text style={styles.exerciseTitle}>{toTitleCase(exercise.exerciseName)}</Text>
-                <TouchableOpacity 
-                  onPress={() => handleRemoveExercise(exercise.exerciseId, exercise.exerciseName)}
-                  style={styles.removeButton}
-                >
-                  <Text style={styles.removeButtonText}>✕</Text>
-                </TouchableOpacity>
+                <View style={styles.exerciseHeaderButtons}>
+                  {exercise.gifUrl && (
+                    <TouchableOpacity 
+                      onPress={() => toggleExerciseDemo(exercise.exerciseId)}
+                      style={[styles.demoButton, isExpanded && styles.demoButtonActive]}
+                    >
+                      <Text style={[styles.demoButtonText, isExpanded && styles.demoButtonTextActive]}>
+                        {isExpanded ? 'Hide' : 'Demo'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity 
+                    onPress={() => handleRemoveExercise(exercise.exerciseId, exercise.exerciseName)}
+                    style={styles.removeButton}
+                  >
+                    <Text style={styles.removeButtonText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
+
+              {/* Exercise Demonstration Section */}
+              {isExpanded && exercise.gifUrl && (
+                <View style={styles.demoSection}>
+                  <TouchableOpacity 
+                    onPress={() => openGifModal(exercise.gifUrl, exercise.exerciseName)}
+                    style={styles.gifContainer}
+                  >
+                    <Image
+                      source={{ uri: exercise.gifUrl }}
+                      style={styles.exerciseGif}
+                      resizeMode="contain"
+                    />
+                    <View style={styles.gifOverlay}>
+                      <Text style={styles.gifOverlayText}>Tap to view full screen</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {(exerciseLogs[exercise.exerciseId] || []).map((set, index) => (
                 <View key={index} style={styles.setRow}>
                   <View style={styles.setLabel}>
@@ -384,6 +460,37 @@ setTimeout(() => {
         })}
 
         <GradientButton onPress={handleSubmit} title="Save Workout" style={styles.saveButton} />
+
+        {/* Full Screen GIF Modal */}
+        <Modal
+          visible={showGifModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowGifModal(false)}
+        >
+          <View style={styles.modalBackground}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {selectedGif ? toTitleCase(selectedGif.name) : ''}
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => setShowGifModal(false)}
+                  style={styles.modalCloseButton}
+                >
+                  <Text style={styles.modalCloseText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              {selectedGif && (
+                <Image
+                  source={{ uri: selectedGif.url }}
+                  style={styles.modalGif}
+                  resizeMode="contain"
+                />
+              )}
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -418,14 +525,31 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xl,
     marginVertical: spacing.sm,
     padding: spacing.lg,
-    alignItems: 'flex-start',
     backgroundColor: '#1A1A1A',
     borderRadius: 10,
+  },
+  searchResultContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchResultInfo: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  searchResultGif: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  searchGifThumbnail: {
+    width: '100%',
+    height: '100%',
   },
   exerciseName: {
     ...typography.h3,
     color: colors.textPrimary,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xs,
   },
   exerciseDetails: {
     ...typography.bodyMedium,
@@ -447,6 +571,31 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     flex: 1,
   },
+  exerciseHeaderButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  demoButton: {
+    backgroundColor: '#2A2A2A',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#444444',
+  },
+  demoButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  demoButtonText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  demoButtonTextActive: {
+    color: '#FFFFFF',
+  },
   removeButton: {
     backgroundColor: '#FF4444',
     borderRadius: 16,
@@ -454,12 +603,42 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: spacing.sm,
   },
   removeButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  demoSection: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    padding: spacing.md,
+  },
+  gifContainer: {
+    position: 'relative',
+    alignItems: 'center',
+  },
+  exerciseGif: {
+    width: screenWidth - 80,
+    height: 200,
+    borderRadius: 8,
+  },
+  gifOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: 8,
+    borderRadius: 6,
+  },
+  gifOverlayText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   setRow: {
     flexDirection: 'row',
@@ -514,6 +693,48 @@ const styles = StyleSheet.create({
   saveButton: {
     paddingHorizontal: spacing.lg,
     alignSelf: 'center',
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: screenWidth - 40,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    padding: spacing.lg,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  modalTitle: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  modalCloseButton: {
+    backgroundColor: '#FF4444',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  modalGif: {
+    width: '100%',
+    height: 300,
+    borderRadius: 12,
   },
 });
 
