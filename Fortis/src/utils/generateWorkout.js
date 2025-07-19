@@ -239,6 +239,7 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
       equipment: exercise.equipment,
       target: exercise.target,
       body_part: exercise.body_part,
+      gif_url: exercise.gif_url,
     };
   });
 

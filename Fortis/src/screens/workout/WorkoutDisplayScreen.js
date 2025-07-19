@@ -10,6 +10,8 @@ import {
   Alert,
   Modal,
   Vibration,
+  Image,
+  Dimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +23,7 @@ import { spacing } from '../../utils/spacing';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../supabase';
 
+const { width: screenWidth } = Dimensions.get('window');
 const WorkoutDisplayScreen = ({ navigation, route }) => {
   const { workout, muscleGroup } = route.params || {};
   const [workoutExercises, setWorkoutExercises] = useState(workout || []);
@@ -39,6 +42,9 @@ const WorkoutDisplayScreen = ({ navigation, route }) => {
   const [exerciseIntensities, setExerciseIntensities] = useState({});
   const [progressionSuggestion, setProgressionSuggestion] = useState(null);
   const [showProgressionModal, setShowProgressionModal] = useState(false);
+  const [showFormCheck, setShowFormCheck] = useState(false);
+  const [showGifModal, setShowGifModal] = useState(false);
+  
   
   const { userProfile, setWorkouts, saveProgressionSuggestion, getProgressionHistory } = useApp();
   const timerRef = useRef(null);
@@ -88,8 +94,13 @@ const WorkoutDisplayScreen = ({ navigation, route }) => {
       setCurrentReps(workoutExercises[currentExercise].reps || 0);
       setShowAdjustWeight(false);
       setShowAdjustReps(false);
+      setShowFormCheck(false);
     }
   }, [currentExercise]);
+
+  const openGifModal = () => {
+    setShowGifModal(true);
+  };
 
   const getRestTime = (exercise) => {
     // Smart rest time based on exercise type
@@ -553,17 +564,27 @@ const handleProgressionDecision = async (accepted) => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>{muscleGroup?.charAt(0).toUpperCase() + muscleGroup?.slice(1)} Workout</Text>
-            <Text style={styles.subtitle}>Exercise {currentExercise + 1} of {workoutExercises.length}</Text>
-          </View>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>{muscleGroup?.charAt(0).toUpperCase() + muscleGroup?.slice(1)} Workout</Text>
+          <Text style={styles.subtitle}>Exercise {currentExercise + 1} of {workoutExercises.length}</Text>
         </View>
+        {/* ADD THIS BUTTON */}
+        {currentExerciseData?.gif_url && (
+          <TouchableOpacity
+            style={[styles.formCheckButton, showFormCheck && styles.formCheckButtonActive]}
+            onPress={() => setShowFormCheck(!showFormCheck)}
+          >
+            <Ionicons name="eye" size={20} color={showFormCheck ? '#FFFFFF' : colors.textSecondary} />
+            <Text style={[styles.formCheckText, showFormCheck && styles.formCheckTextActive]}>Form</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
         {/* Progress Bar */}
         <View style={styles.progressContainer}>
@@ -579,6 +600,20 @@ const handleProgressionDecision = async (accepted) => {
             {Math.round(((currentExercise + 1) / workoutExercises.length) * 100)}% Complete
           </Text>
         </View>
+        {showFormCheck && currentExerciseData?.gif_url && (
+          <Card style={styles.formCheckCard}>
+            <TouchableOpacity onPress={openGifModal} style={styles.gifContainer}>
+              <Image
+                source={{ uri: currentExerciseData.gif_url }}
+                style={styles.exerciseGif}
+                resizeMode="contain"
+              />
+              <View style={styles.gifOverlay}>
+                <Text style={styles.gifOverlayText}>Tap to enlarge</Text>
+              </View>
+            </TouchableOpacity>
+          </Card>
+        )}
 
         {/* Current Exercise */}
           <Card style={styles.exerciseCard}>
@@ -793,6 +828,18 @@ const handleProgressionDecision = async (accepted) => {
           </View>
         </View>
       </Modal>
+      <Modal visible={showGifModal} transparent={true} animationType="fade" onRequestClose={() => setShowGifModal(false)}>
+  <View style={styles.modalBackground}>
+    <View style={styles.modalContainer}>
+      <TouchableOpacity onPress={() => setShowGifModal(false)} style={styles.modalCloseButton}>
+        <Ionicons name="close" size={24} color="#FFFFFF" />
+      </TouchableOpacity>
+      {currentExerciseData?.gif_url && (
+        <Image source={{ uri: currentExerciseData.gif_url }} style={styles.modalGif} resizeMode="contain" />
+      )}
+    </View>
+  </View>
+</Modal>
     </SafeAreaView>
   );
 };
@@ -1146,6 +1193,88 @@ const styles = StyleSheet.create({
   logButton: {
     width: '100%',
   },
+  formCheckButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: colors.surface,
+  borderRadius: 20,
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+  borderWidth: 1,
+  borderColor: colors.textTertiary,
+},
+formCheckButtonActive: {
+  backgroundColor: colors.primary,
+  borderColor: colors.primary,
+},
+formCheckText: {
+  fontSize: 12,
+  color: colors.textSecondary,
+  marginLeft: 4,
+  fontWeight: 'bold',
+},
+formCheckTextActive: {
+  color: '#FFFFFF',
+},
+formCheckCard: {
+  marginHorizontal: spacing.xl,
+  marginBottom: spacing.lg,
+  padding: spacing.lg,
+  backgroundColor: colors.primary + '10',
+  borderColor: colors.primary,
+  borderWidth: 1,
+},
+gifContainer: {
+  position: 'relative',
+  alignItems: 'center',
+},
+exerciseGif: {
+  width: screenWidth - 120,
+  height: 140,
+  borderRadius: 8,
+},
+gifOverlay: {
+  position: 'absolute',
+  bottom: 8,
+  left: 8,
+  right: 8,
+  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  padding: 6,
+  borderRadius: 4,
+  alignItems: 'center',
+},
+gifOverlayText: {
+  color: '#FFFFFF',
+  fontSize: 12,
+},
+modalBackground: {
+  flex: 1,
+  backgroundColor: 'rgba(0, 0, 0, 0.9)',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+modalContainer: {
+  width: screenWidth - 40,
+  backgroundColor: colors.surface,
+  borderRadius: 16,
+  padding: 20,
+  maxHeight: '80%',
+},
+modalCloseButton: {
+  backgroundColor: '#FF4444',
+  borderRadius: 20,
+  width: 40,
+  height: 40,
+  justifyContent: 'center',
+  alignItems: 'center',
+  alignSelf: 'flex-end',
+  marginBottom: 10,
+},
+modalGif: {
+  width: '100%',
+  height: 280,
+  borderRadius: 12,
+},
 });
 
 export default WorkoutDisplayScreen;
