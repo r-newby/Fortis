@@ -25,7 +25,7 @@ import { useFocusEffect } from '@react-navigation/native';
 const { width } = Dimensions.get('window');
 
 const DashboardScreen = ({ navigation }) => {
-  const { userProfile, workouts, personalRecords, reloadData, needsReload, setNeedsReload} = useApp();
+  const { userProfile, workouts, personalRecords, reloadData, needsReload, setNeedsReload } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [greeting, setGreeting] = useState('');
   const [motivationalQuote, setMotivationalQuote] = useState('');
@@ -37,7 +37,11 @@ const DashboardScreen = ({ navigation }) => {
     "Your body can stand almost anything. It's your mind you have to convince.",
     "Don't stop when you're tired. Stop when you're done.",
   ];
-
+  /**
+  * Statistics state object
+  * Comprehensive workout analytics including weekly metrics,
+  * progress tracking, and performance indicators
+  */
   const [stats, setStats] = useState({
     weeklyWorkouts: 0,
     currentStreak: 0,
@@ -56,19 +60,23 @@ const DashboardScreen = ({ navigation }) => {
     setRandomQuote();
   }, [workouts]);
 
-  // Recalculate stats when screen comes into focus
-useFocusEffect(
-  React.useCallback(() => {
-    const reloadIfNeeded = async () => {
-      if (needsReload) {
-        await reloadData();
-        setNeedsReload(false);
-      }
-    };
-    reloadIfNeeded();
-  }, [needsReload])
-);
-
+  /**
+   * Focus Effect: Data Synchronization
+   * Implements conditional data reloading when screen gains focus
+   * Ensures dashboard displays most current information after navigation
+   */
+  useFocusEffect(
+    React.useCallback(() => {
+      const reloadIfNeeded = async () => {
+        if (needsReload) {
+          await reloadData();
+          setNeedsReload(false);
+        }
+      };
+      reloadIfNeeded();
+    }, [needsReload])
+  );
+  // Time-Based Greeting Generator
   const setTimeBasedGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) {
@@ -80,11 +88,16 @@ useFocusEffect(
     }
   };
 
+  // Random Quote Selection Algorithm
   const setRandomQuote = () => {
     const randomIndex = Math.floor(Math.random() * motivationalQuotes.length);
     setMotivationalQuote(motivationalQuotes[randomIndex]);
   };
-
+  /**
+   * Comprehensive Statistics Calculation
+   * Primary algorithm for processing workout data into meaningful metrics
+   * Implements multiple statistical calculations and data transformations
+   */
   const calculateStats = () => {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -92,36 +105,47 @@ useFocusEffect(
     const weeklyWorkouts = workouts.filter(w =>
       new Date(w.date) >= oneWeekAgo
     );
-
+    // Calculate average workout intensity 
     const weeklyAverageIntensity = weeklyWorkouts.reduce((sum, w) =>
       sum + (w.average_intensity || 3), 0) / (weeklyWorkouts.length || 1);
-
+    // Calculate average completion rate 
     const weeklyCompletionRate = weeklyWorkouts.reduce((sum, w) =>
       sum + (w.completion_percentage ?? 0), 0) / (weeklyWorkouts.length || 1);
-
+    /**
+     * Current Streak Calculation Algorithm
+     * Implements consecutive day workout tracking with gap detection
+     *
+     * Algorithm Logic:
+     * 1. Sort workouts by date (descending)
+     * 2. Check if workout exists for current day
+     * 3. Iterate backwards from today/yesterday checking for consecutive workouts
+     * 4. Break on first gap detected
+     *
+     * @returns {currentStreak} Current consecutive workout streak
+     */
     const calculateCurrentStreak = () => {
       if (workouts.length === 0) return 0;
-      
+
       const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
       let currentStreak = 0;
       let checkDate = new Date();
       checkDate.setHours(0, 0, 0, 0);
-      
+
       const todayWorkout = workouts.some(w => {
         const workoutDate = new Date(w.date);
         workoutDate.setHours(0, 0, 0, 0);
         return workoutDate.getTime() === checkDate.getTime();
       });
-      
+
       // Start from yesterday if no workout today
       if (!todayWorkout) {
         checkDate.setDate(checkDate.getDate() - 1);
       }
-      
+
       for (const workout of sortedWorkouts) {
         const workoutDate = new Date(workout.date);
         workoutDate.setHours(0, 0, 0, 0);
-        
+
         if (workoutDate.getTime() === checkDate.getTime()) {
           currentStreak++;
           checkDate.setDate(checkDate.getDate() - 1);
@@ -129,25 +153,25 @@ useFocusEffect(
           break; // Gap found
         }
       }
-      
+
       return currentStreak;
     };
 
     const streak = calculateCurrentStreak();
-
+    // Today's workout verification using date string comparison
     const today = new Date();
     const todayWorkout = workouts.some(w => {
       const workoutDate = new Date(w.date);
       return workoutDate.toDateString() === today.toDateString();
     });
-
+    // Calculate total weekly volume with multiple property fallbacks
     const weeklyVolume = weeklyWorkouts.reduce((sum, w) => {
       return sum + (w.total_volume || w.totalVolume || 0);
     }, 0);
-
+    // Identify most recent workout for "last workout" display
     const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
     const lastWorkout = sortedWorkouts[0] || null;
-
+    // Update statistics state with calculated values
     setStats({
       weeklyWorkouts: weeklyWorkouts.length,
       currentStreak: streak,
@@ -218,13 +242,6 @@ useFocusEffect(
             <Text style={styles.username}>{userProfile?.username || 'Athlete'}</Text>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity
-              style={styles.notificationButton}
-              onPress={() => navigation.navigate('Social')}
-            >
-              <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
-              <View style={styles.notificationBadge} />
-            </TouchableOpacity>
             <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('Profile')}>
               <LinearGradient
                 colors={colors.gradientPrimary}
@@ -441,24 +458,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-  },
-  notificationButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 22,
-    position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.error,
   },
   profileButton: {
     width: 44,
