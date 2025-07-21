@@ -51,26 +51,15 @@ const ProfileScreen = ({ navigation }) => {
   const [editValue, setEditValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // User statistics state
-  const [userStats, setUserStats] = useState({
-    totalWorkouts: 0,
-    totalVolume: 0,
-    currentStreak: 0,
-    favoriteExercise: 'None',
-    favoriteTime: 'Morning',
-    totalPRs: 0,
-    averageIntensity: 0,
-    completionRate: 0,
-    memberSince: userProfile?.created_at 
-      ? new Date(userProfile.created_at).toLocaleDateString()
-      : new Date().toLocaleDateString(),
-  });
+  // Member since date
+  const memberSince = userProfile?.created_at 
+    ? new Date(userProfile.created_at).toLocaleDateString()
+    : new Date().toLocaleDateString();
 
-  // Load settings and calculate stats on component mount
+  // Load settings on component mount
   useEffect(() => {
     loadLocalSettings();
-    calculateUserStats();
-  }, [workouts, personalRecords, userProfile]);
+  }, [user]);
 
   // Load settings from AsyncStorage
   const loadLocalSettings = async () => {
@@ -93,114 +82,6 @@ const ProfileScreen = ({ navigation }) => {
       console.error('Error saving settings:', error);
       Alert.alert('Error', 'Failed to save settings. Please try again.');
     }
-  };
-
-  // Calculate user statistics from backend data
-  const calculateUserStats = () => {
-    if (!workouts || !Array.isArray(workouts)) {
-      return;
-    }
-
-    console.log('📊 Calculating stats from:', workouts.length, 'workouts');
-
-    const totalWorkouts = workouts.length;
-    
-    // Calculate total volume from Supabase data
-    const totalVolume = workouts.reduce((sum, workout) => {
-      return sum + (workout.total_volume || workout.totalVolume || 0);
-    }, 0);
-    
-    const totalPRs = Object.keys(personalRecords || {}).length;
-    
-    // Calculate average intensity
-    const avgIntensity = workouts.length > 0 
-      ? workouts.reduce((sum, w) => sum + (w.intensity || w.average_intensity || 3), 0) / workouts.length 
-      : 0;
-
-    // Calculate completion rate
-    const completionRate = workouts.length > 0
-      ? workouts.reduce((sum, w) => sum + (w.completion_percentage || 100), 0) / workouts.length
-      : 100;
-
-    // Calculate current streak
-    const currentStreak = calculateWorkoutStreak();
-
-    // Find favorite exercise from workout data
-    const favoriteExercise = findFavoriteExercise();
-
-    const newStats = {
-      totalWorkouts,
-      totalVolume: Math.round(totalVolume),
-      currentStreak,
-      favoriteExercise,
-      favoriteTime: 'Morning', // Could be calculated from workout times
-      totalPRs,
-      averageIntensity: Math.round(avgIntensity * 10) / 10,
-      completionRate: Math.round(completionRate),
-      memberSince: userProfile?.created_at 
-        ? new Date(userProfile.created_at).toLocaleDateString()
-        : new Date().toLocaleDateString(),
-    };
-
-    console.log('📊 Calculated stats:', newStats);
-    setUserStats(newStats);
-  };
-
-  // Calculate workout streak using Supabase data
-  const calculateWorkoutStreak = () => {
-    if (!workouts || workouts.length === 0) return 0;
-
-    // Sort workouts by date (most recent first)
-    const sortedWorkouts = [...workouts]
-      .filter(w => w.date) // Only workouts with dates
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    if (sortedWorkouts.length === 0) return 0;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    let streak = 0;
-    let checkDate = new Date(today);
-
-    for (const workout of sortedWorkouts) {
-      const workoutDate = new Date(workout.date);
-      workoutDate.setHours(0, 0, 0, 0);
-      
-      const diffTime = checkDate - workoutDate;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays <= 1) {
-        streak++;
-        checkDate = new Date(workoutDate);
-        checkDate.setDate(checkDate.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-
-    return streak;
-  };
-
-  // Find favorite exercise from Supabase workout data
-  const findFavoriteExercise = () => {
-    const exerciseCount = {};
-    
-    workouts.forEach(workout => {
-      if (workout.workout_exercises) {
-        workout.workout_exercises.forEach(ex => {
-          if (ex.exercises?.name) {
-            exerciseCount[ex.exercises.name] = (exerciseCount[ex.exercises.name] || 0) + 1;
-          }
-        });
-      }
-    });
-
-    if (Object.keys(exerciseCount).length === 0) return 'None';
-    
-    return Object.keys(exerciseCount).reduce((a, b) => 
-      exerciseCount[a] > exerciseCount[b] ? a : b
-    );
   };
 
   // Get fitness level display text using backend data
@@ -432,7 +313,7 @@ const ProfileScreen = ({ navigation }) => {
             end={{ x: 1, y: 1 }}
           >
             <View style={styles.profileContent}>
-              <TouchableOpacity style={styles.avatarContainer}>
+              <View style={styles.avatarContainer}>
                 <LinearGradient
                   colors={colors.gradientPrimary}
                   style={styles.avatarGradient}
@@ -441,80 +322,18 @@ const ProfileScreen = ({ navigation }) => {
                     {userProfile?.username?.charAt(0).toUpperCase() || 'U'}
                   </Text>
                 </LinearGradient>
-                <View style={styles.editBadge}>
-                  <Ionicons name="camera" size={16} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
+              </View>
               
               <Text style={styles.profileName}>{userProfile?.username || 'User'}</Text>
               <Text style={styles.profileSubtitle}>
                 {getFitnessLevelText()} • {getGoalText()}
               </Text>
               <Text style={styles.memberSince}>
-                Member since {userStats.memberSince}
+                Member since {memberSince}
               </Text>
             </View>
           </LinearGradient>
         </View>
-
-        {/* Statistics Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Statistics</Text>
-          <View style={styles.statsGrid}>
-            <Card style={styles.statCard}>
-              <View style={styles.statContent}>
-                <Text style={styles.statValue}>{userStats.totalWorkouts}</Text>
-                <Text style={styles.statLabel}>Workouts</Text>
-              </View>
-            </Card>
-            <Card style={styles.statCard}>
-              <View style={styles.statContent}>
-                <Text style={styles.statValue}>{userStats.totalVolume.toLocaleString()}</Text>
-                <Text style={styles.statLabel}>Total Volume (lbs)</Text>
-              </View>
-            </Card>
-            <Card style={styles.statCard}>
-              <View style={styles.statContent}>
-                <Text style={styles.statValue}>{userStats.currentStreak}</Text>
-                <Text style={styles.statLabel}>Day Streak</Text>
-              </View>
-            </Card>
-            <Card style={styles.statCard}>
-              <View style={styles.statContent}>
-                <Text style={styles.statValue}>{userStats.completionRate}%</Text>
-                <Text style={styles.statLabel}>Completion Rate</Text>
-              </View>
-            </Card>
-            <Card style={styles.statCard}>
-              <View style={styles.statContent}>
-                <Text style={styles.statValue}>{userStats.totalPRs}</Text>
-                <Text style={styles.statLabel}>Personal Records</Text>
-              </View>
-            </Card>
-            <Card style={styles.statCard}>
-              <View style={styles.statContent}>
-                <Text style={styles.statValue}>{userStats.averageIntensity}</Text>
-                <Text style={styles.statLabel}>Avg Intensity</Text>
-              </View>
-            </Card>
-          </View>
-        </View>
-
-        {/* Favorite Exercise */}
-        {userStats.favoriteExercise !== 'None' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Favorites</Text>
-            <Card style={styles.favoriteCard}>
-              <View style={styles.favoriteContent}>
-                <Ionicons name="heart" size={24} color={colors.error} />
-                <View style={styles.favoriteText}>
-                  <Text style={styles.favoriteTitle}>Favorite Exercise</Text>
-                  <Text style={styles.favoriteValue}>{userStats.favoriteExercise}</Text>
-                </View>
-              </View>
-            </Card>
-          </View>
-        )}
 
         {/* Profile Information Section */}
         <View style={styles.section}>
@@ -720,7 +539,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarContainer: {
-    position: 'relative',
     marginBottom: spacing.lg,
   },
   avatarGradient: {
@@ -735,19 +553,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 32,
     fontWeight: 'bold',
-  },
-  editBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
   },
   profileName: {
     ...typography.h1,
@@ -771,49 +576,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: spacing.lg,
     paddingHorizontal: spacing.xl,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-  },
-  statCard: {
-    width: (width - spacing.xl * 2 - spacing.md) / 2,
-    padding: spacing.lg,
-  },
-  statContent: {
-    alignItems: 'center',
-  },
-  statValue: {
-    ...typography.h2,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  statLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  favoriteCard: {
-    marginHorizontal: spacing.xl,
-    padding: spacing.lg,
-  },
-  favoriteContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  favoriteText: {
-    marginLeft: spacing.md,
-  },
-  favoriteTitle: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-  },
-  favoriteValue: {
-    ...typography.bodyLarge,
-    color: colors.textPrimary,
-    fontWeight: '600',
   },
   listItem: {
     marginHorizontal: spacing.xl,
