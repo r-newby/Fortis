@@ -15,10 +15,13 @@ import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 import { useApp } from '../../context/AppContext';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 
 const WorkoutsScreen = ({ navigation }) => {
-  const { userProfile, workouts } = useApp();
-
+  const { userProfile, workouts, reloadData} = useApp();
+  
+  
   const startCustomWorkout = () => {
     navigation.navigate('ExerciseLogging');
   };
@@ -263,6 +266,8 @@ const WorkoutsScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Recent Workouts</Text>
           {workouts.length > 0 ? (
             workouts.slice(0, 3).map((workout, index) => {
+              console.log("VOLUME: " )
+              console.log("Workout Data:" , workout)
               const volume = workout.total_volume || workout.totalVolume || 0;
               const formattedVolume = volume > 0 ?
                 (volume >= 1000 ? `${(volume / 1000).toFixed(1)}k` : volume.toString()) :
