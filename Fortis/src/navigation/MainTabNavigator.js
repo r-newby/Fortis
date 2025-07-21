@@ -11,7 +11,6 @@ import { typography } from '../utils/typography';
 import DashboardScreen from '../screens/main/DashboardScreen';
 import WorkoutsScreen from '../screens/main/WorkoutsScreen';
 import ProgressScreen from '../screens/main/ProgressScreen';
-import SocialScreen from '../screens/main/SocialScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import PersonalRecordsScreen from '../screens/main/PersonalRecordsScreen';
 
