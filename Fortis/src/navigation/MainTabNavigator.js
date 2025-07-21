@@ -22,6 +22,7 @@ import WorkoutDisplayScreen from '../screens/workout/WorkoutDisplayScreen';
 import ExerciseLoggingScreen from '../screens/workout/ExerciseLoggingScreen';
 import WorkoutSummaryScreen from '../screens/workout/WorkoutSummaryScreen';
 import WorkoutGenerationScreen from '../screens/workout/WorkoutGenerationScreen';
+import WorkoutHistoryScreen from '../screens/workout/WorkoutHistoryScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -45,6 +46,7 @@ const WorkoutStackNavigator = () => {
           animation: 'fade',
         }}
       />
+     
       <Stack.Screen 
         name="EquipmentSelection" 
         component={EquipmentSelectionScreen}
@@ -90,6 +92,8 @@ const WorkoutStackNavigator = () => {
        component={WorkoutSummaryScreen}
        options={{ headerShown: false }}
        />
+
+       
     </Stack.Navigator>
   );
 };
@@ -168,6 +172,13 @@ const MainTabNavigator = () => {
       <Tab.Screen
         name="PersonalRecords"
         component={PersonalRecordsScreen}
+        options={{
+          tabBarButton: () => null, // Hide from tab bar
+        }}
+      />
+      <Tab.Screen
+        name="WorkoutHistory"
+        component={WorkoutHistoryScreen}
         options={{
           tabBarButton: () => null, // Hide from tab bar
         }}

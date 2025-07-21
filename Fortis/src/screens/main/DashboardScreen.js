@@ -348,7 +348,7 @@ useFocusEffect(
               icon="calendar"
               title="Workout History"
               color={colors.success}
-              onPress={() => navigation.navigate('Workouts')}
+              onPress={() => navigation.navigate('WorkoutHistory')}
             />
           </View>
         </View>
