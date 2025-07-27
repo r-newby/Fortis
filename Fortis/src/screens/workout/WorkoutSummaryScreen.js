@@ -27,23 +27,23 @@ const WorkoutSummaryScreen = ({ navigation, route }) => {
       </View>
     );
   }
-
+  // Get the exercises array from workout, default to empty array if undefined
   const workoutExercises = workout.exercises || [];
-
+  // Calculate total volume (weight × reps for each set, summed across all exercises)
   const totalVolume = workoutExercises.reduce((total, ex) => {
     return total + ex.completedSets.reduce((sum, set) => {
       return sum + (set.reps * set.weight);
     }, 0);
   }, 0);
-
+  // Calculate total number of reps across all exercises and sets
   const totalReps = workoutExercises.reduce((total, ex) => {
     return total + ex.completedSets.reduce((sum, set) => sum + set.reps, 0);
   }, 0);
-
+  // Calculate total number of sets completed across all exercises
   const totalSets = workoutExercises.reduce((total, ex) => {
     return total + ex.completedSets.length;
   }, 0);
-
+  // Get workout duration, default to 0 if not provided
   const totalDuration = workout.duration || 0;
 
   return (

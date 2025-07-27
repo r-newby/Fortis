@@ -160,6 +160,16 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     setSearchQuery('');
     setSearchResults([]);
   };
+  const calculateWorkoutVolume = (exercises) => {
+  return exercises.reduce((total, exercise) => {
+    const exerciseVolume = exercise.sets.reduce((sum, set) => {
+      const reps = Number(set.reps) || 0;
+      const weight = Number(set.weight) || 0;
+      return sum + (reps * weight);
+    }, 0);
+    return total + exerciseVolume;
+  }, 0);
+};
 
   // Toggle exercise demonstration visibility
   const toggleExerciseDemo = (exerciseId) => {
@@ -276,7 +286,7 @@ const ExerciseLoggingScreen = ({ navigation }) => {
       Alert.alert('Error', 'No workout to complete.');
       return;
     }
-
+    totalVolume = calculateWorkoutVolume(exercises);
     const { exercises, date, muscleGroup, totalVolume } = finished;
     console.log('Inserting workout into Supabase...');
 
@@ -329,6 +339,7 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     setExpandedExercises(new Set());
     
     console.log('NAVIGATION STATE:', JSON.stringify(navigation.getState(), null, 2));
+<<<<<<< Updated upstream
     navigation.navigate('Workouts', {
       screen: 'WorkoutSummary',
       params: { workout: finished },
@@ -337,6 +348,20 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     setTimeout(() => {
       setNeedsReload(true);
     }, 250);
+=======
+    await reloadData();
+navigation.navigate('Workouts', {
+  screen: 'WorkoutSummary',
+  params: { workout: finished },
+});
+
+
+
+setTimeout(() => {
+  setNeedsReload(true);
+  
+}, 250);
+>>>>>>> Stashed changes
   };
 
   return (
