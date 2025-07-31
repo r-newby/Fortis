@@ -7,106 +7,285 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Switch,
-  Image,
   Dimensions,
+  Modal,
+  TextInput,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Card from '../../components/common/Card';
+import GradientButton from '../../components/common/GradientButton';
 import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
 const ProfileScreen = ({ navigation }) => {
-  const { clearAllData, workouts, personalRecords } = useApp();
-  const [notifications, setNotifications] = useState(true);
-  const [privateProfile, setPrivateProfile] = useState(false);
-  const [autoRestTimer, setAutoRestTimer] = useState(true);
-  const [soundEffects, setSoundEffects] = useState(true);
-
-
-  const { userProfile } = useApp();
-
-
-  const [userStats, setUserStats] = useState({
-    totalWorkouts: 0,
-    totalVolume: 0,
-    currentStreak: 0,
-    favoriteTime: 'Morning',
-    memberSince: userProfile?.created_at
-  ? new Date(userProfile.created_at).toLocaleDateString()
-  : new Date().toLocaleDateString(),
-
-    level: 1,
-    experience: 0,
+  const { 
+    clearAllData, 
+    workouts, 
+    personalRecords, 
+    userProfile, 
+    user, 
+    updateUserProfile, 
+    reloadData 
+  } = useApp();
+  
+  // Settings state (stored in AsyncStorage since no user_settings table)
+  const [settings, setSettings] = useState({
+    notifications: true,
+    privateProfile: false,
+    autoRestTimer: true,
+    soundEffects: true,
   });
 
+  // Modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [editingField, setEditingField] = useState('');
+  const [editValue, setEditValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Member since date
+  const memberSince = userProfile?.created_at 
+    ? new Date(userProfile.created_at).toLocaleDateString()
+    : new Date().toLocaleDateString();
+
+  // Load settings on component mount
   useEffect(() => {
-    calculateUserStats();
-  }, [workouts, userProfile]);
+    loadLocalSettings();
+  }, [user]);
 
-  const calculateUserStats = () => {
-    const totalWorkouts = workouts.length;
-    const totalVolume = workouts.reduce((sum, w) => sum + (w.totalVolume || 0), 0);
-
-    let streak = 0;
-    const today = new Date();
-    const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    for (let i = 0; i < sortedWorkouts.length; i++) {
-      const workoutDate = new Date(sortedWorkouts[i].date);
-      const daysDiff = Math.floor((today - workoutDate) / (1000 * 60 * 60 * 24));
-      if (daysDiff === i) {
-        streak++;
-      } else {
-        break;
+  // Load settings from AsyncStorage
+  const loadLocalSettings = async () => {
+    try {
+      const savedSettings = await AsyncStorage.getItem(`settings_${user?.id}`);
+      if (savedSettings) {
+        setSettings(JSON.parse(savedSettings));
       }
+    } catch (error) {
+      console.error('Error loading settings:', error);
     }
-
-    const level = Math.floor(totalWorkouts / 10) + 1;
-    const experience = (totalWorkouts % 10) * 10;
-
-    setUserStats({
-      totalWorkouts,
-      totalVolume,
-      currentStreak: streak,
-      favoriteTime: 'Morning',
-      memberSince: userProfile?.created_at
-  ? new Date(userProfile.created_at).toLocaleDateString()
-  : new Date().toLocaleDateString(),
-      level,
-      experience,
-    });
   };
 
+  // Save settings to AsyncStorage
+  const saveLocalSettings = async (newSettings) => {
+    try {
+      await AsyncStorage.setItem(`settings_${user?.id}`, JSON.stringify(newSettings));
+      setSettings(newSettings);
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      Alert.alert('Error', 'Failed to save settings. Please try again.');
+    }
+  };
+
+  // Get fitness level display text using backend data
   const getFitnessLevelText = () => {
-    if (!userProfile?.fitnessLevel) return 'Beginner';
-    const level = userProfile.fitnessLevel;
+    if (!userProfile?.fitness_level && !userProfile?.fitnessLevel) return 'Beginner';
+    const level = userProfile.fitness_level || userProfile.fitnessLevel;
     return `${level.charAt(0).toUpperCase()}${level.slice(1)}`;
   };
 
-  const profileItems = [
-  {
-    id: 'username',
-    title: 'Username',
-    icon: 'person-outline',
-    value: userProfile?.username || 'User',
-    onPress: () => navigation.navigate('Username'), 
-  },
-  {
-    id: 'fitness-level',
-    title: 'Fitness Level',
-    icon: 'barbell-outline',
-    value: getFitnessLevelText(),
-    onPress: () => {},
-  },
-];
+  // Get goal display text using backend data
+  const getGoalText = () => {
+    if (!userProfile?.goal) return 'General Fitness';
+    const goalMap = {
+      'strength': 'Strength',
+      'muscle': 'Muscle Gain',
+      'endurance': 'Endurance'
+    };
+    return goalMap[userProfile.goal] || 'General Fitness';
+  };
 
+  // Handle profile field editing with backend update
+  const handleEditField = (field, currentValue) => {
+    setEditingField(field);
+    setEditValue(currentValue || '');
+    setShowEditModal(true);
+  };
+
+  // Save edited field to Supabase
+  const saveEditedField = async () => {
+    if (!editValue.trim()) {
+      Alert.alert('Error', 'Please enter a valid value');
+      return;
+    }
+
+    setIsLoading(true);
+    
+    const updateData = {};
+    
+    if (editingField === 'username') {
+      updateData.username = editValue.trim();
+    } else if (editingField === 'fitness_level') {
+      updateData.fitness_level = editValue.toLowerCase();
+    } else if (editingField === 'goal') {
+      updateData.goal = editValue.toLowerCase();
+    }
+
+    console.log('🔄 Updating profile:', updateData);
+
+    const success = await updateUserProfile(updateData);
+    
+    if (success) {
+      setShowEditModal(false);
+      await reloadData(); // Reload data from Supabase
+      Alert.alert('Success', 'Profile updated successfully');
+    } else {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    }
+    
+    setIsLoading(false);
+  };
+
+  // Handle setting toggle
+  const handleSettingToggle = (setting, value) => {
+    const newSettings = { ...settings, [setting]: value };
+    saveLocalSettings(newSettings);
+  };
+
+  // Handle logout with Supabase
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🔄 Logging out...');
+              await supabase.auth.signOut();
+              // Clear local settings
+              await AsyncStorage.removeItem(`settings_${user?.id}`);
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle data clear (using existing clearAllData function)
+  const handleClearData = () => {
+    Alert.alert(
+      'Clear All Data',
+      'This will remove all your workout data. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            console.log('🗑️ Clearing all data...');
+            const success = await clearAllData();
+            if (success) {
+              Alert.alert('Success', 'All data cleared successfully');
+              // Reload to show empty state
+              await reloadData();
+            } else {
+              Alert.alert('Error', 'Failed to clear data');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Navigate to Personal Records with data
+  const handlePersonalRecords = () => {
+    console.log('📈 Navigating to Personal Records with', Object.keys(personalRecords).length, 'PRs');
+    navigation.navigate('PersonalRecords');
+  };
+
+  // Profile items configuration
+  const profileItems = [
+    {
+      id: 'username',
+      title: 'Username',
+      icon: 'person-outline',
+      value: userProfile?.username || 'User',
+      onPress: () => handleEditField('username', userProfile?.username),
+    },
+    {
+      id: 'fitness-level',
+      title: 'Fitness Level',
+      icon: 'barbell-outline',
+      value: getFitnessLevelText(),
+      onPress: () => handleEditField('fitness_level', userProfile?.fitness_level || userProfile?.fitnessLevel),
+    },
+    {
+      id: 'goal',
+      title: 'Fitness Goal',
+      icon: 'flag-outline',
+      value: getGoalText(),
+      onPress: () => handleEditField('goal', userProfile?.goal),
+    },
+  ];
+
+  // Settings items configuration
+  const settingsItems = [
+    {
+      id: 'notifications',
+      title: 'Push Notifications',
+      icon: 'notifications-outline',
+      value: settings.notifications,
+      onToggle: (value) => handleSettingToggle('notifications', value),
+    },
+    {
+      id: 'privateProfile',
+      title: 'Private Profile',
+      icon: 'lock-closed-outline',
+      value: settings.privateProfile,
+      onToggle: (value) => handleSettingToggle('privateProfile', value),
+    },
+    {
+      id: 'autoRestTimer',
+      title: 'Auto Rest Timer',
+      icon: 'timer-outline',
+      value: settings.autoRestTimer,
+      onToggle: (value) => handleSettingToggle('autoRestTimer', value),
+    },
+    {
+      id: 'soundEffects',
+      title: 'Sound Effects',
+      icon: 'volume-high-outline',
+      value: settings.soundEffects,
+      onToggle: (value) => handleSettingToggle('soundEffects', value),
+    },
+  ];
+
+  const actionItems = [
+    {
+      id: 'personalRecords',
+      title: 'Personal Records',
+      icon: 'trophy-outline',
+      onPress: handlePersonalRecords,
+    },
+    {
+      id: 'clearData',
+      title: 'Clear All Data',
+      icon: 'trash-outline',
+      onPress: handleClearData,
+      danger: true,
+    },
+    {
+      id: 'logout',
+      title: 'Logout',
+      icon: 'log-out-outline',
+      onPress: handleLogout,
+      danger: true,
+    },
+  ];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -117,7 +296,10 @@ const ProfileScreen = ({ navigation }) => {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
-          <TouchableOpacity style={styles.settingsButton}>
+          <TouchableOpacity 
+            style={styles.settingsButton}
+            onPress={() => setShowSettingsModal(true)}
+          >
             <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
@@ -131,7 +313,7 @@ const ProfileScreen = ({ navigation }) => {
             end={{ x: 1, y: 1 }}
           >
             <View style={styles.profileContent}>
-              <TouchableOpacity style={styles.avatarContainer}>
+              <View style={styles.avatarContainer}>
                 <LinearGradient
                   colors={colors.gradientPrimary}
                   style={styles.avatarGradient}
@@ -140,106 +322,177 @@ const ProfileScreen = ({ navigation }) => {
                     {userProfile?.username?.charAt(0).toUpperCase() || 'U'}
                   </Text>
                 </LinearGradient>
-                <View style={styles.editBadge}>
-                  <Ionicons name="camera" size={16} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
+              </View>
               
               <Text style={styles.profileName}>{userProfile?.username || 'User'}</Text>
-              <Text style={styles.profileLevel}>{getFitnessLevelText()} • Level {userStats.level}</Text>
-              
-              {/* Progress Bar */}
-              <View style={styles.experienceContainer}>
-                <View style={styles.experienceBar}>
-                  <View style={[styles.experienceFill, { width: `${userStats.experience}%` }]} />
-                </View>
-                <Text style={styles.experienceText}>{userStats.experience}% to Level {userStats.level + 1}</Text>
-              </View>
-            </View>
-
-            {/* Stats Grid */}
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{userStats.totalWorkouts}</Text>
-                <Text style={styles.statLabel}>Workouts</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{userStats.currentStreak}</Text>
-                <Text style={styles.statLabel}>Day Streak</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{Object.keys(personalRecords).length}</Text>
-                <Text style={styles.statLabel}>PRs</Text>
-              </View>
+              <Text style={styles.profileSubtitle}>
+                {getFitnessLevelText()} • {getGoalText()}
+              </Text>
+              <Text style={styles.memberSince}>
+                Member since {memberSince}
+              </Text>
             </View>
           </LinearGradient>
         </View>
 
-        {/* Achievement Badges */}
+        {/* Profile Information Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Achievements</Text>
-            <TouchableOpacity>
-              <Text style={styles.viewAllText}>View All</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.badgesScroll}>
-            {[
-              { id: '1', icon: '🔥', name: 'First Workout', unlocked: true },
-              { id: '2', icon: '💪', name: '7 Day Streak', unlocked: userStats.currentStreak >= 7 },
-              { id: '3', icon: '🏆', name: '10 PRs', unlocked: Object.keys(personalRecords).length >= 10 },
-              { id: '4', icon: '👑', name: 'Volume King', unlocked: userStats.totalVolume > 100000 },
-              { id: '5', icon: '🎯', name: 'Goal Crusher', unlocked: false },
-            ].map((badge) => (
-              <View 
-                key={badge.id} 
-                style={[styles.badge, !badge.unlocked && styles.badgeLocked]}
-              >
-                <Text style={styles.badgeIcon}>{badge.icon}</Text>
-                <Text style={styles.badgeName}>{badge.name}</Text>
-                {!badge.unlocked && (
-                  <View style={styles.lockOverlay}>
-                    <Ionicons name="lock-closed" size={20} color={colors.textTertiary} />
-                  </View>
-                )}
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Profile Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Profile</Text>
+          <Text style={styles.sectionTitle}>Profile Information</Text>
           {profileItems.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.listItem}
-              onPress={item.onPress}
-              activeOpacity={0.7}
-            >
-              <View style={styles.listItemLeft}>
-                <Ionicons name={item.icon} size={24} color={colors.textSecondary} />
-                <Text style={styles.listItemTitle}>{item.title}</Text>
-              </View>
-              <View style={styles.listItemRight}>
-                {item.value && (
-                  <Text style={styles.listItemValue}>{item.value}</Text>
-                )}
+            <Card key={item.id} style={styles.listItem} onPress={item.onPress}>
+              <View style={styles.listItemContent}>
+                <View style={styles.listItemLeft}>
+                  <Ionicons name={item.icon} size={24} color={colors.primary} />
+                  <View style={styles.listItemText}>
+                    <Text style={styles.listItemTitle}>{item.title}</Text>
+                    <Text style={styles.listItemValue}>{item.value}</Text>
+                  </View>
+                </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
               </View>
-            </TouchableOpacity>
+            </Card>
           ))}
         </View>
-     
+
+        {/* Actions Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Actions</Text>
+          {actionItems.map((item) => (
+            <Card key={item.id} style={styles.listItem} onPress={item.onPress}>
+              <View style={styles.listItemContent}>
+                <View style={styles.listItemLeft}>
+                  <Ionicons 
+                    name={item.icon} 
+                    size={24} 
+                    color={item.danger ? colors.error : colors.primary} 
+                  />
+                  <Text style={[
+                    styles.listItemTitle,
+                    item.danger && { color: colors.error }
+                  ]}>
+                    {item.title}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              </View>
+            </Card>
+          ))}
+        </View>
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Member since {userStats.memberSince}</Text>
-          <Text style={styles.versionText}>FORTIS v1.0</Text>
+          <Text style={styles.footerText}>FORTIS Fitness Tracker</Text>
+          <Text style={styles.versionText}>Version 1.0.0</Text>
         </View>
       </ScrollView>
+
+      {/* Edit Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowEditModal(false)}>
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit {editingField}</Text>
+            <TouchableOpacity onPress={saveEditedField} disabled={isLoading}>
+              <Text style={[styles.modalSave, isLoading && { opacity: 0.5 }]}>
+                {isLoading ? 'Saving...' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.modalContent}>
+            {editingField === 'fitness_level' ? (
+              <View>
+                {['beginner', 'intermediate', 'advanced'].map((level) => (
+                  <TouchableOpacity
+                    key={level}
+                    style={[
+                      styles.optionButton,
+                      editValue === level && styles.optionButtonSelected
+                    ]}
+                    onPress={() => setEditValue(level)}
+                  >
+                    <Text style={[
+                      styles.optionText,
+                      editValue === level && styles.optionTextSelected
+                    ]}>
+                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : editingField === 'goal' ? (
+              <View>
+                {['strength', 'muscle', 'endurance'].map((goal) => (
+                  <TouchableOpacity
+                    key={goal}
+                    style={[
+                      styles.optionButton,
+                      editValue === goal && styles.optionButtonSelected
+                    ]}
+                    onPress={() => setEditValue(goal)}
+                  >
+                    <Text style={[
+                      styles.optionText,
+                      editValue === goal && styles.optionTextSelected
+                    ]}>
+                      {goal.charAt(0).toUpperCase() + goal.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <TextInput
+                style={styles.modalInput}
+                value={editValue}
+                onChangeText={setEditValue}
+                placeholder={`Enter ${editingField}`}
+                placeholderTextColor={colors.textTertiary}
+                autoFocus
+              />
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Settings Modal */}
+      <Modal
+        visible={showSettingsModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowSettingsModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <View style={{ width: 60 }} />
+            <Text style={styles.modalTitle}>Settings</Text>
+            <TouchableOpacity onPress={() => setShowSettingsModal(false)}>
+              <Text style={styles.modalSave}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            {settingsItems.map((item) => (
+              <View key={item.id} style={styles.settingItem}>
+                <View style={styles.listItemLeft}>
+                  <Ionicons name={item.icon} size={24} color={colors.primary} />
+                  <Text style={styles.listItemTitle}>{item.title}</Text>
+                </View>
+                <Switch
+                  value={item.value}
+                  onValueChange={item.onToggle}
+                  trackColor={{ false: colors.surface, true: colors.primary }}
+                  thumbColor={item.value ? '#FFFFFF' : colors.textTertiary}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -261,221 +514,101 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   title: {
-    ...typography.displayMedium,
+    ...typography.h1,
     color: colors.textPrimary,
   },
   settingsButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 22,
     backgroundColor: colors.surface,
-    borderRadius: 20,
   },
   profileSection: {
     marginHorizontal: spacing.xl,
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.xl,
     borderRadius: 20,
     overflow: 'hidden',
   },
   profileGradient: {
     padding: spacing.xxl,
+    alignItems: 'center',
   },
   profileContent: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
   },
   avatarContainer: {
-    position: 'relative',
     marginBottom: spacing.lg,
   },
   avatarGradient: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    fontSize: 42,
-    fontWeight: 'bold',
+    ...typography.h1,
     color: '#FFFFFF',
-  },
-  editBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: colors.background,
+    fontSize: 32,
+    fontWeight: 'bold',
   },
   profileName: {
     ...typography.h1,
     color: '#FFFFFF',
     marginBottom: spacing.xs,
   },
-  profileLevel: {
+  profileSubtitle: {
     ...typography.bodyLarge,
     color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: spacing.lg,
-  },
-  experienceContainer: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  experienceBar: {
-    width: '80%',
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 4,
     marginBottom: spacing.sm,
   },
-  experienceFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 4,
-  },
-  experienceText: {
+  memberSince: {
     ...typography.caption,
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    width: '100%',
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    ...typography.h1,
-    color: '#FFFFFF',
-    marginBottom: spacing.xs,
-  },
-  statLabel: {
-    ...typography.caption,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textTransform: 'uppercase',
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    color: 'rgba(255, 255, 255, 0.6)',
   },
   section: {
-    marginBottom: spacing.xxxl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.md,
+    marginBottom: spacing.xl,
   },
   sectionTitle: {
-    ...typography.label,
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-  },
-  viewAllText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-  },
-  badgesScroll: {
-    paddingHorizontal: spacing.xl,
-  },
-  badge: {
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginRight: spacing.md,
-    minWidth: 100,
-    position: 'relative',
-  },
-  badgeLocked: {
-    opacity: 0.5,
-  },
-  badgeIcon: {
-    fontSize: 32,
-    marginBottom: spacing.sm,
-  },
-  badgeName: {
-    ...typography.caption,
+    ...typography.h3,
     color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  lockOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 16,
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.xl,
   },
   listItem: {
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.sm,
+    padding: spacing.lg,
+  },
+  listItemContent: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    backgroundColor: colors.background,
+    alignItems: 'center',
   },
   listItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
+  listItemText: {
+    marginLeft: spacing.md,
+    flex: 1,
+  },
   listItemTitle: {
     ...typography.bodyLarge,
     color: colors.textPrimary,
-    marginLeft: spacing.lg,
-  },
-  listItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginBottom: spacing.xs,
   },
   listItemValue: {
     ...typography.bodyMedium,
     color: colors.textSecondary,
-    marginRight: spacing.sm,
-  },
-  dangerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-  },
-  dangerText: {
-    ...typography.bodyLarge,
-    color: colors.error,
-    marginLeft: spacing.lg,
-  },
-  signOutButton: {
-    marginHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-  },
-  signOutText: {
-    ...typography.bodyLarge,
-    color: colors.error,
-    fontWeight: '600',
   },
   footer: {
     alignItems: 'center',
     marginTop: spacing.xl,
+    paddingHorizontal: spacing.xl,
   },
   footerText: {
     ...typography.caption,
@@ -485,6 +618,74 @@ const styles = StyleSheet.create({
   versionText: {
     ...typography.caption,
     color: colors.textTertiary,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+  },
+  modalCancel: {
+    ...typography.bodyLarge,
+    color: colors.textSecondary,
+  },
+  modalSave: {
+    ...typography.bodyLarge,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  modalContent: {
+    flex: 1,
+    padding: spacing.xl,
+  },
+  modalInput: {
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  optionButton: {
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    borderRadius: 12,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  optionButtonSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  optionText: {
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  optionTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  settingItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
 });
 

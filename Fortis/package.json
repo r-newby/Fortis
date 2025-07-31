@@ -10,9 +10,16 @@
     "test": "jest"
   },
   "jest": {
+    "preset": "react-native",
+    "setupFilesAfterEnv": [
+      "<rootDir>/setup.js"
+    ],
+    "transformIgnorePatterns": [
+      "node_modules/(?!(jest-)?react-native|@react-native|@react-navigation|expo|@expo|expo-constants|expo-linear-gradient|@expo/vector-icons|@supabase)"
+    ],
     "testEnvironment": "node",
-    "testMatch": [
-      "**/__tests__/**/*.test.js"
+    "testPathIgnorePatterns": [
+      "<rootDir>/node_modules/"
     ]
   },
   "dependencies": {
@@ -42,9 +49,13 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@react-native-community/cli": "latest",
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^13.2.0",
     "@types/react": "~19.0.10",
     "babel-jest": "^30.0.4",
     "jest": "^30.0.4",
+    "jest-environment-jsdom": "^30.0.4",
+    "react-test-renderer": "^19.0.0",
     "typescript": "~5.8.3"
   },
   "private": true
