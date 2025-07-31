@@ -160,16 +160,55 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     setSearchQuery('');
     setSearchResults([]);
   };
-  const calculateWorkoutVolume = (exercises) => {
-  return exercises.reduce((total, exercise) => {
-    const exerciseVolume = exercise.sets.reduce((sum, set) => {
-      const reps = Number(set.reps) || 0;
-      const weight = Number(set.weight) || 0;
+const calculateWorkoutVolume = (exercises) => {
+  if (!Array.isArray(exercises)) {
+    console.warn('calculateWorkoutVolume: Expected an array but got:', exercises);
+    return 0;
+  }
+
+  return exercises.reduce((totalVolume, exercise, index) => {
+    if (!exercise || typeof exercise !== 'object') {
+      console.warn(`Skipping invalid exercise at index ${index}:`, exercise);
+      return totalVolume;
+    }
+
+    const sets = Array.isArray(exercise.completedSets)
+      ? exercise.completedSets
+      : [];
+
+    if (sets.length === 0) {
+      console.warn(`No completed sets for exercise at index ${index} (${exercise.exerciseName || 'Unnamed'})`);
+    }
+
+    console.log(`Completed sets for "${exercise.exerciseName}":`, sets);
+
+    const exerciseVolume = sets.reduce((sum, set, setIndex) => {
+      const reps = Number(set?.reps);
+      let weight = Number(set?.weight);
+
+      if (isNaN(reps)) {
+        console.warn(`Invalid reps at exercise[${index}].completedSets[${setIndex}]:`, set);
+        return sum;
+      }
+
+      if (isNaN(weight)) {
+        console.warn(`Invalid weight at exercise[${index}].completedSets[${setIndex}]:`, set);
+        return sum;
+      }
+
+      // Treat bodyweight as weight = 1 for volume calc
+      if (weight === 0) weight = 1;
+
       return sum + (reps * weight);
     }, 0);
-    return total + exerciseVolume;
+
+    console.log(`Exercise [${index}] "${exercise.exerciseName}" volume: ${exerciseVolume}`);
+    return totalVolume + exerciseVolume;
   }, 0);
 };
+
+
+
 
   // Toggle exercise demonstration visibility
   const toggleExerciseDemo = (exerciseId) => {
@@ -248,7 +287,7 @@ const ExerciseLoggingScreen = ({ navigation }) => {
       ...exerciseLogs,
       [exerciseId]: [
         ...(exerciseLogs[exerciseId] || []),
-        { reps: '', weight: isBodyweight ? '0' : '' },
+        { reps: '', weight: isBodyweight ? '1' : '' },
       ],
     });
 
@@ -268,12 +307,12 @@ const ExerciseLoggingScreen = ({ navigation }) => {
       const exercise = currentWorkout?.exercises.find(ex => ex.exerciseId === exerciseId);
       const isBodyweight = isBodyweightExercise(exercise);
       
-      logs.forEach(set => {
+      logs.forEach((set, index) => {
         const reps = parseInt(set.reps);
-        const weight = isBodyweight ? 0 : parseFloat(set.weight);
+        const weight = isBodyweight ? 1 : parseFloat(set.weight);
         
         if (!isNaN(reps) && !isNaN(weight)) {
-          addSet(exerciseId, { reps, weight });
+          addSet(exerciseId, { reps, weight }, index);
         }
       });
     }
@@ -286,9 +325,11 @@ const ExerciseLoggingScreen = ({ navigation }) => {
       Alert.alert('Error', 'No workout to complete.');
       return;
     }
-    totalVolume = calculateWorkoutVolume(exercises);
-    const { exercises, date, muscleGroup, totalVolume } = finished;
-    console.log('Inserting workout into Supabase...');
+    console.log("CALCULATING WORKOUT:");
+    const { exercises, date, muscleGroup } = finished;
+    let totalVolume = calculateWorkoutVolume(exercises);
+    console.log("TOTAL:", totalVolume);
+
 
     const { data: workoutInsert, error } = await supabase
       .from('workouts')
@@ -339,29 +380,17 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     setExpandedExercises(new Set());
     
     console.log('NAVIGATION STATE:', JSON.stringify(navigation.getState(), null, 2));
-<<<<<<< Updated upstream
-    navigation.navigate('Workouts', {
-      screen: 'WorkoutSummary',
-      params: { workout: finished },
-    });
-
-    setTimeout(() => {
-      setNeedsReload(true);
-    }, 250);
-=======
-    await reloadData();
+    
 navigation.navigate('Workouts', {
   screen: 'WorkoutSummary',
   params: { workout: finished },
 });
 
 
-
 setTimeout(() => {
   setNeedsReload(true);
   
 }, 250);
->>>>>>> Stashed changes
   };
 
   return (

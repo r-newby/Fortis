@@ -165,28 +165,30 @@ const WorkoutGenerationScreen = ({ route, navigation }) => {
     setIsLoading(false);
   };
 
-  const calculateWorkoutStats = (workout) => {
-    const totalSets = workout.reduce((sum, ex) => sum + ex.sets, 0);
-    
-    // Estimate workout time: 45 seconds per set + rest time between sets
-    const avgSetTime = 45; // seconds
-    const totalRestTime = workout.reduce((sum, ex) => {
-      return sum + (ex.sets - 1) * ex.restTime;
-    }, 0);
-    const totalSeconds = totalSets * avgSetTime + totalRestTime;
-    const estimatedTime = Math.ceil(totalSeconds / 60);
-    
-    // Calculate total volume (sets × reps × weight)
-    const totalVolume = workout.reduce((sum, ex) => {
-      return sum + (ex.sets * ex.reps * (ex.weight || 0));
-    }, 0);
+const calculateWorkoutStats = (workout) => {
+  const totalSets = workout.reduce((sum, ex) => sum + (ex?.sets ?? 0), 0);
 
-    setWorkoutStats({
-      totalSets,
-      estimatedTime,
-      totalVolume,
-    });
-  };
+  const avgSetTime = 45;
+  const totalRestTime = workout.reduce((sum, ex) => {
+    if (!ex?.sets || !ex?.restTime) return sum;
+    return sum + (ex.sets - 1) * ex.restTime;
+  }, 0);
+
+  const totalSeconds = totalSets * avgSetTime + totalRestTime;
+  const estimatedTime = Math.ceil(totalSeconds / 60);
+
+  const totalVolume = workout.reduce((sum, ex) => {
+    if (!ex?.sets || !ex?.reps) return sum;
+    return sum + (ex.sets * ex.reps * (ex.weight ?? 0));
+  }, 0);
+
+  setWorkoutStats({
+    totalSets,
+    estimatedTime,
+    totalVolume,
+  });
+};
+
 
   // Toggle exercise demonstration visibility for individual exercises
   const toggleExerciseDemo = (exerciseId) => {

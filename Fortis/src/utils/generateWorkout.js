@@ -37,7 +37,7 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
 
   const goalConfig = {
     strength: { sets: 4, reps: 5 },
-    hypertrophy: { sets: 3, reps: 10 },
+    muscle: { sets: 3, reps: 10 },
     endurance: { sets: 2, reps: 15 },
 
   };
