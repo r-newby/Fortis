@@ -34,7 +34,7 @@ export const WorkoutProvider = ({ children }) => {
     isCustom = false,
   }) => {
     console.log('Starting new workout with:', { equipment, muscleGroup, fitnessLevel, goal, isCustom });
-    
+
     setIsCustomWorkout(isCustom);
     setSelectedEquipment(equipment);
     setSelectedMuscleGroup(muscleGroup);
@@ -44,12 +44,12 @@ export const WorkoutProvider = ({ children }) => {
 
     if (!isCustom && allExercises.length > 0) {
       // FIXED: Pass the correct parameters to generateWorkout
-      exercises = generateWorkout({ 
-        allExercises, 
-        equipment, 
-        muscleGroup, 
-        fitnessLevel, 
-        goal 
+      exercises = generateWorkout({
+        allExercises,
+        equipment,
+        muscleGroup,
+        fitnessLevel,
+        goal
       });
       setWorkoutExercises(exercises);
       console.log('Generated exercises:', exercises.length);

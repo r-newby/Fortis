@@ -44,8 +44,8 @@ const WorkoutDisplayScreen = ({ navigation, route }) => {
   const [showProgressionModal, setShowProgressionModal] = useState(false);
   const [showFormCheck, setShowFormCheck] = useState(false);
   const [showGifModal, setShowGifModal] = useState(false);
-  
-  
+
+
   const { userProfile, setWorkouts, saveProgressionSuggestion, getProgressionHistory } = useApp();
   const timerRef = useRef(null);
 
@@ -106,24 +106,24 @@ const WorkoutDisplayScreen = ({ navigation, route }) => {
     // Smart rest time based on exercise type
     const name = exercise.name.toLowerCase();
     const equipment = exercise.equipment.toLowerCase();
-    
+
     // Compound movements get longer rest
     const compoundKeywords = ['squat', 'deadlift', 'bench', 'press', 'row', 'pull'];
     if (compoundKeywords.some(keyword => name.includes(keyword))) {
       return 180; // 3 minutes
     }
-    
+
     // Barbell exercises get longer rest
     if (equipment.includes('barbell')) {
       return 150; // 2.5 minutes
     }
-    
+
     // Isolation exercises get shorter rest
     const isolationKeywords = ['curl', 'raise', 'fly', 'extension', 'calf'];
     if (isolationKeywords.some(keyword => name.includes(keyword))) {
       return 90; // 1.5 minutes
     }
-    
+
     return 120; // 2 minutes default
   };
 
@@ -139,15 +139,15 @@ const WorkoutDisplayScreen = ({ navigation, route }) => {
     const key = `${currentExercise}-${currentSet}`;
     setCompletedSets(prev => ({
       ...prev,
-      [key]: { 
-        reps: currentReps, 
-        weight: currentWeight, 
-        completed: true 
+      [key]: {
+        reps: currentReps,
+        weight: currentWeight,
+        completed: true
       }
     }));
 
     const exercise = workoutExercises[currentExercise];
-    
+
     if (currentSet < exercise.sets - 1) {
       // More sets in current exercise
       setCurrentSet(currentSet + 1);
@@ -159,140 +159,140 @@ const WorkoutDisplayScreen = ({ navigation, route }) => {
   };
 
   const submitIntensityRating = async (rating) => {
-  setExerciseIntensities(prev => ({
-    ...prev,
-    [currentExercise]: rating
-  }));
+    setExerciseIntensities(prev => ({
+      ...prev,
+      [currentExercise]: rating
+    }));
 
-  setShowIntensityModal(false);
+    setShowIntensityModal(false);
 
-  // Check for progression suggestion
-  // --- NEW checkProgressionSuggestion ---------------------------------
-const checkProgressionSuggestion = async (intensity) => {
-  const exercise = workoutExercises[currentExercise];
-  const current = { reps: currentReps, weight: currentWeight, sets: exercise.sets };
+    // Check for progression suggestion
+    // --- NEW checkProgressionSuggestion ---------------------------------
+    const checkProgressionSuggestion = async (intensity) => {
+      const exercise = workoutExercises[currentExercise];
+      const current = { reps: currentReps, weight: currentWeight, sets: exercise.sets };
 
-  const history = await getProgressionHistory(exercise.id) || [];
-  const threeWeeksAgo = new Date();
-  threeWeeksAgo.setDate(threeWeeksAgo.getDate() - 21);
+      const history = await getProgressionHistory(exercise.id) || [];
+      const threeWeeksAgo = new Date();
+      threeWeeksAgo.setDate(threeWeeksAgo.getDate() - 21);
 
-  const recent = history.filter(h => new Date(h.date) >= threeWeeksAgo);
+      const recent = history.filter(h => new Date(h.date) >= threeWeeksAgo);
 
-  // Skip if there's no history
-  if (recent.length === 0) {
-    return;
-  }
+      // Skip if there's no history
+      if (recent.length === 0) {
+        return;
+      }
 
-  const avgIntensity = recent.reduce((s, h) => s + h.intensity, 0) / recent.length;
-  const repsTrend   = recent.every(h => h.reps   >= current.reps);
-  const weightTrend = recent.every(h => h.weight >= current.weight);
+      const avgIntensity = recent.reduce((s, h) => s + h.intensity, 0) / recent.length;
+      const repsTrend = recent.every(h => h.reps >= current.reps);
+      const weightTrend = recent.every(h => h.weight >= current.weight);
 
-  let suggestion = null;
+      let suggestion = null;
 
-  // ---------- PROGRESSION ----------
-  if (intensity <= 2 && (repsTrend || weightTrend)) {
-    if (current.reps < 12) {
-      suggestion = {
-        type: 'reps',
-        newReps: current.reps + 1,
-        message: `That was easy. Try ${current.reps + 1} reps next time.`,
-      };
-    } else if (current.weight < 150) {
-      const inc = current.weight >= 100 ? 10 : 5;
-      suggestion = {
-        type: 'weight',
-        newWeight: current.weight + inc,
-        message: `Nice work! Bump the weight to ${current.weight + inc} lbs next time.`,
-      };
-    } else {
-      suggestion = {
-        type: 'set',
-        addSet: 1,
-        message: 'You’re cruising. Let’s add one extra set next week.',
-      };
-    }
-  }
+      // ---------- PROGRESSION ----------
+      if (intensity <= 2 && (repsTrend || weightTrend)) {
+        if (current.reps < 12) {
+          suggestion = {
+            type: 'reps',
+            newReps: current.reps + 1,
+            message: `That was easy. Try ${current.reps + 1} reps next time.`,
+          };
+        } else if (current.weight < 150) {
+          const inc = current.weight >= 100 ? 10 : 5;
+          suggestion = {
+            type: 'weight',
+            newWeight: current.weight + inc,
+            message: `Nice work! Bump the weight to ${current.weight + inc} lbs next time.`,
+          };
+        } else {
+          suggestion = {
+            type: 'set',
+            addSet: 1,
+            message: 'You’re cruising. Let’s add one extra set next week.',
+          };
+        }
+      }
 
-  // ---------- REGRESSION ----------
-  if (intensity === 5) {
-    suggestion = {
-      type: 'regression',
-      newWeight: Math.max(current.weight - 5, 0),
-      message: `That was tough. Drop to ${Math.max(current.weight - 5, 0)} lbs next week and nail the form.`,
-    };
-  }
+      // ---------- REGRESSION ----------
+      if (intensity === 5) {
+        suggestion = {
+          type: 'regression',
+          newWeight: Math.max(current.weight - 5, 0),
+          message: `That was tough. Drop to ${Math.max(current.weight - 5, 0)} lbs next week and nail the form.`,
+        };
+      }
 
-  if (!suggestion?.type) return;
+      if (!suggestion?.type) return;
 
-  setProgressionSuggestion({
-    ...suggestion,
-    intensity,
-    oldWeight: current.weight,
-    oldReps: current.reps,
-    oldSets: current.sets,
-    exercise: exercise.name,
-    exerciseId: exercise.id,
-  });
-
-  setShowProgressionModal(true);
-};
-
-
-
-  await checkProgressionSuggestion(rating);
-
-  if (currentExercise < workoutExercises.length - 1) {
-    setCurrentExercise(currentExercise + 1);
-    setCurrentSet(0);
-  } else {
-    setWorkoutComplete(true);
-  }
-};
-
-
-const handleProgressionDecision = async (accepted) => {
-  if (!progressionSuggestion) return;
-
-  const {
-    type,
-    newWeight,
-    newReps,
-    addSet,
-    oldWeight,
-    oldReps,
-    oldSets,
-    exerciseId,
-    intensity,
-    message,
-  } = progressionSuggestion;
-
-  try {
-    const { error } = await supabase
-      .from('progression_suggestions')
-      .insert({
-        user_id: userProfile.id,
-        exercise_id: exerciseId,
-        suggestion_type: type,
-        old_weight: oldWeight,
-        new_weight: newWeight ?? null,
-        old_reps: oldReps,
-        new_reps: newReps ?? null,
-        old_sets: oldSets,
-        new_sets: addSet ? oldSets + 1 : null,
-        intensity_rating: intensity,
-        reason: message,
-        accepted,
+      setProgressionSuggestion({
+        ...suggestion,
+        intensity,
+        oldWeight: current.weight,
+        oldReps: current.reps,
+        oldSets: current.sets,
+        exercise: exercise.name,
+        exerciseId: exercise.id,
       });
 
-    if (error) {
-      console.error('Failed to save progression decision:', error);
+      setShowProgressionModal(true);
+    };
+
+
+
+    await checkProgressionSuggestion(rating);
+
+    if (currentExercise < workoutExercises.length - 1) {
+      setCurrentExercise(currentExercise + 1);
+      setCurrentSet(0);
+    } else {
+      setWorkoutComplete(true);
     }
-  } catch (error) {
-    console.error('Unexpected error saving progression decision:', error);
-  } finally {
-    setShowProgressionModal(false);
-  }
-};
+  };
+
+
+  const handleProgressionDecision = async (accepted) => {
+    if (!progressionSuggestion) return;
+
+    const {
+      type,
+      newWeight,
+      newReps,
+      addSet,
+      oldWeight,
+      oldReps,
+      oldSets,
+      exerciseId,
+      intensity,
+      message,
+    } = progressionSuggestion;
+
+    try {
+      const { error } = await supabase
+        .from('progression_suggestions')
+        .insert({
+          user_id: userProfile.id,
+          exercise_id: exerciseId,
+          suggestion_type: type,
+          old_weight: oldWeight,
+          new_weight: newWeight ?? null,
+          old_reps: oldReps,
+          new_reps: newReps ?? null,
+          old_sets: oldSets,
+          new_sets: addSet ? oldSets + 1 : null,
+          intensity_rating: intensity,
+          reason: message,
+          accepted,
+        });
+
+      if (error) {
+        console.error('Failed to save progression decision:', error);
+      }
+    } catch (error) {
+      console.error('Unexpected error saving progression decision:', error);
+    } finally {
+      setShowProgressionModal(false);
+    }
+  };
 
   const skipRest = () => {
     setIsTimerActive(false);
@@ -344,7 +344,7 @@ const handleProgressionDecision = async (accepted) => {
 
     // Calculate average intensity
     const intensities = Object.values(exerciseIntensities);
-    const avgIntensity = intensities.length > 0 
+    const avgIntensity = intensities.length > 0
       ? Math.round(intensities.reduce((a, b) => a + b, 0) / intensities.length)
       : 3;
 
@@ -372,37 +372,37 @@ const handleProgressionDecision = async (accepted) => {
 
       const workoutId = workoutData.id;
 
- const exerciseInserts = workoutExercises.map((ex, index) => {
-  // Calculate averages from all completed sets for this exercise
-  const completedSetsForExercise = [];
-  for (let i = 0; i < ex.sets; i++) {
-    const setKey = `${index}-${i}`;
-    const setData = completedSets[setKey];
-    if (setData) completedSetsForExercise.push(setData);
-  }
+      const exerciseInserts = workoutExercises.map((ex, index) => {
+        // Calculate averages from all completed sets for this exercise
+        const completedSetsForExercise = [];
+        for (let i = 0; i < ex.sets; i++) {
+          const setKey = `${index}-${i}`;
+          const setData = completedSets[setKey];
+          if (setData) completedSetsForExercise.push(setData);
+        }
 
-  // Calculate average actual performance
-  const avgActualReps = completedSetsForExercise.length > 0
-    ? Math.round(completedSetsForExercise.reduce((sum, set) => sum + set.reps, 0) / completedSetsForExercise.length)
-    : ex.reps;
-    
-  const avgActualWeight = completedSetsForExercise.length > 0
-    ? Math.round(completedSetsForExercise.reduce((sum, set) => sum + set.weight, 0) / completedSetsForExercise.length)
-    : (ex.weight || 0);
+        // Calculate average actual performance
+        const avgActualReps = completedSetsForExercise.length > 0
+          ? Math.round(completedSetsForExercise.reduce((sum, set) => sum + set.reps, 0) / completedSetsForExercise.length)
+          : ex.reps;
 
-  // Create one row per exercise (not per set)
-  return {
-    workout_id: workoutId,
-    exercise_id: ex.id,
-    sets: ex.sets, // Total sets planned for this exercise
-    planned_reps: ex.reps,
-    actual_reps: avgActualReps,
-    planned_weight: ex.weight || null,
-    actual_weight: avgActualWeight || null,
-    reps: avgActualReps, // Keep for backward compatibility
-    weight: avgActualWeight || null, // Keep for backward compatibility
-  };
-});
+        const avgActualWeight = completedSetsForExercise.length > 0
+          ? Math.round(completedSetsForExercise.reduce((sum, set) => sum + set.weight, 0) / completedSetsForExercise.length)
+          : (ex.weight || 0);
+
+        // Create one row per exercise (not per set)
+        return {
+          workout_id: workoutId,
+          exercise_id: ex.id,
+          sets: ex.sets, // Total sets planned for this exercise
+          planned_reps: ex.reps,
+          actual_reps: avgActualReps,
+          planned_weight: ex.weight || null,
+          actual_weight: avgActualWeight || null,
+          reps: avgActualReps, // Keep for backward compatibility
+          weight: avgActualWeight || null, // Keep for backward compatibility
+        };
+      });
 
       const { error: exercisesError } = await supabase
         .from('workout_exercises')
@@ -447,7 +447,7 @@ const handleProgressionDecision = async (accepted) => {
           <Text style={styles.completionSubtitle}>
             Great job crushing your {muscleGroup} workout!
           </Text>
-          
+
           <Card style={styles.summaryCard}>
             <Text style={styles.summaryTitle}>Today's Summary:</Text>
             <Text style={styles.summaryItem}>✅ {workoutExercises.length} exercises completed</Text>
@@ -473,36 +473,36 @@ const handleProgressionDecision = async (accepted) => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>{muscleGroup?.charAt(0).toUpperCase() + muscleGroup?.slice(1)} Workout</Text>
-          <Text style={styles.subtitle}>Exercise {currentExercise + 1} of {workoutExercises.length}</Text>
-        </View>
-        {/* ADD THIS BUTTON */}
-        {currentExerciseData?.gif_url && (
           <TouchableOpacity
-            style={[styles.formCheckButton, showFormCheck && styles.formCheckButtonActive]}
-            onPress={() => setShowFormCheck(!showFormCheck)}
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
           >
-            <Ionicons name="eye" size={20} color={showFormCheck ? '#FFFFFF' : colors.textSecondary} />
-            <Text style={[styles.formCheckText, showFormCheck && styles.formCheckTextActive]}>Form</Text>
+            <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-        )}
-      </View>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>{muscleGroup?.charAt(0).toUpperCase() + muscleGroup?.slice(1)} Workout</Text>
+            <Text style={styles.subtitle}>Exercise {currentExercise + 1} of {workoutExercises.length}</Text>
+          </View>
+          {/* ADD THIS BUTTON */}
+          {currentExerciseData?.gif_url && (
+            <TouchableOpacity
+              style={[styles.formCheckButton, showFormCheck && styles.formCheckButtonActive]}
+              onPress={() => setShowFormCheck(!showFormCheck)}
+            >
+              <Ionicons name="eye" size={20} color={showFormCheck ? '#FFFFFF' : colors.textSecondary} />
+              <Text style={[styles.formCheckText, showFormCheck && styles.formCheckTextActive]}>Form</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Progress Bar */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <View 
+            <View
               style={[
-                styles.progressFill, 
+                styles.progressFill,
                 { width: `${((currentExercise + 1) / workoutExercises.length) * 100}%` }
-              ]} 
+              ]}
             />
           </View>
           <Text style={styles.progressText}>
@@ -525,21 +525,21 @@ const handleProgressionDecision = async (accepted) => {
         )}
 
         {/* Current Exercise */}
-          <Card style={styles.exerciseCard}>
-            <View style={styles.exerciseInfoContainer}>
-              <Text style={styles.setNumber}>Set {currentSet + 1} of {currentExerciseData.sets}</Text>
-              <Text style={styles.exerciseName}>{currentExerciseData.name}</Text>
-              <Text style={styles.exerciseTarget}>
-                {currentExerciseData.target} • {currentExerciseData.equipment}
-              </Text>
+        <Card style={styles.exerciseCard}>
+          <View style={styles.exerciseInfoContainer}>
+            <Text style={styles.setNumber}>Set {currentSet + 1} of {currentExerciseData.sets}</Text>
+            <Text style={styles.exerciseName}>{currentExerciseData.name}</Text>
+            <Text style={styles.exerciseTarget}>
+              {currentExerciseData.target} • {currentExerciseData.equipment}
+            </Text>
+            <Text style={styles.setDetails}>
               <Text style={styles.setDetails}>
-                <Text style={styles.setDetails}>
-                  {currentReps} reps{currentWeight > 0 ? ` @ ${currentWeight} lbs` : ''}
-                </Text>
-
+                {currentReps} reps{currentWeight > 0 ? ` @ ${currentWeight} lbs` : ''}
               </Text>
-            </View>
-          </Card>
+
+            </Text>
+          </View>
+        </Card>
 
 
         {/* Rest Timer */}
@@ -551,23 +551,23 @@ const handleProgressionDecision = async (accepted) => {
             </View>
             <Text style={styles.timerDisplay}>{formatTime(restTime)}</Text>
             <View style={styles.timerControls}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => adjustRestTime(-30)}
                 style={styles.timerButton}
               >
                 <Ionicons name="remove" size={20} color={colors.warning} />
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setIsTimerActive(!isTimerActive)}
                 style={styles.timerButton}
               >
-                <Ionicons 
-                  name={isTimerActive ? "pause" : "play"} 
-                  size={20} 
-                  color={colors.warning} 
+                <Ionicons
+                  name={isTimerActive ? "pause" : "play"}
+                  size={20}
+                  color={colors.warning}
                 />
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => adjustRestTime(30)}
                 style={styles.timerButton}
               >
@@ -583,82 +583,82 @@ const handleProgressionDecision = async (accepted) => {
         {/* Action Buttons */}
         {!isResting && (
           <View style={styles.actionContainer}>
-  {/* Weight Adjustment */}
-  {showAdjustWeight && (
-    <Card style={styles.adjustCard}>
-      <Text style={styles.adjustTitle}>Adjust Weight</Text>
-      <View style={styles.adjustControls}>
-        <TouchableOpacity onPress={() => adjustWeight(-5)} style={styles.adjustButton}>
-          <Ionicons name="remove" size={20} color={colors.primary} />
-        </TouchableOpacity>
-        <Text style={styles.adjustValue}>{currentWeight} lbs</Text>
-        <TouchableOpacity onPress={() => adjustWeight(5)} style={styles.adjustButton}>
-          <Ionicons name="add" size={20} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-      <TouchableOpacity onPress={() => setShowAdjustWeight(false)}>
-        <Text style={styles.doneText}>Done</Text>
-      </TouchableOpacity>
-    </Card>
-  )}
+            {/* Weight Adjustment */}
+            {showAdjustWeight && (
+              <Card style={styles.adjustCard}>
+                <Text style={styles.adjustTitle}>Adjust Weight</Text>
+                <View style={styles.adjustControls}>
+                  <TouchableOpacity onPress={() => adjustWeight(-5)} style={styles.adjustButton}>
+                    <Ionicons name="remove" size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                  <Text style={styles.adjustValue}>{currentWeight} lbs</Text>
+                  <TouchableOpacity onPress={() => adjustWeight(5)} style={styles.adjustButton}>
+                    <Ionicons name="add" size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity onPress={() => setShowAdjustWeight(false)}>
+                  <Text style={styles.doneText}>Done</Text>
+                </TouchableOpacity>
+              </Card>
+            )}
 
-  {/* Reps Adjustment */}
-  {showAdjustReps && (
-    <Card style={styles.adjustCard}>
-      <Text style={styles.adjustTitle}>Adjust Reps</Text>
-      <View style={styles.adjustControls}>
-        <TouchableOpacity onPress={() => adjustReps(-1)} style={styles.adjustButton}>
-          <Ionicons name="remove" size={20} color={colors.success} />
-        </TouchableOpacity>
-        <Text style={styles.adjustValue}>{currentReps} reps</Text>
-        <TouchableOpacity onPress={() => adjustReps(1)} style={styles.adjustButton}>
-          <Ionicons name="add" size={20} color={colors.success} />
-        </TouchableOpacity>
-      </View>
-      <TouchableOpacity onPress={() => setShowAdjustReps(false)}>
-        <Text style={styles.doneText}>Done</Text>
-      </TouchableOpacity>
-    </Card>
-  )}
+            {/* Reps Adjustment */}
+            {showAdjustReps && (
+              <Card style={styles.adjustCard}>
+                <Text style={styles.adjustTitle}>Adjust Reps</Text>
+                <View style={styles.adjustControls}>
+                  <TouchableOpacity onPress={() => adjustReps(-1)} style={styles.adjustButton}>
+                    <Ionicons name="remove" size={20} color={colors.success} />
+                  </TouchableOpacity>
+                  <Text style={styles.adjustValue}>{currentReps} reps</Text>
+                  <TouchableOpacity onPress={() => adjustReps(1)} style={styles.adjustButton}>
+                    <Ionicons name="add" size={20} color={colors.success} />
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity onPress={() => setShowAdjustReps(false)}>
+                  <Text style={styles.doneText}>Done</Text>
+                </TouchableOpacity>
+              </Card>
+            )}
 
-  {/* Adjust Buttons */}
-  <View style={styles.adjustButtonsRow}>
-    <TouchableOpacity
-      onPress={() => setShowAdjustWeight(!showAdjustWeight)}
-      style={[styles.adjustToggle, showAdjustWeight && styles.adjustToggleActive]}
-    >
-      <Text
-        style={[
-          styles.adjustToggleText,
-          showAdjustWeight && styles.adjustToggleTextActive,
-        ]}
-      >
-        Adjust Weight
-      </Text>
-    </TouchableOpacity>
-    <TouchableOpacity
-      onPress={() => setShowAdjustReps(!showAdjustReps)}
-      style={[styles.adjustToggle, showAdjustReps && styles.adjustToggleActive]}
-    >
-      <Text
-        style={[
-          styles.adjustToggleText,
-          showAdjustReps && styles.adjustToggleTextActive,
-        ]}
-      >
-        Adjust Reps
-      </Text>
-    </TouchableOpacity>
-  </View>
+            {/* Adjust Buttons */}
+            <View style={styles.adjustButtonsRow}>
+              <TouchableOpacity
+                onPress={() => setShowAdjustWeight(!showAdjustWeight)}
+                style={[styles.adjustToggle, showAdjustWeight && styles.adjustToggleActive]}
+              >
+                <Text
+                  style={[
+                    styles.adjustToggleText,
+                    showAdjustWeight && styles.adjustToggleTextActive,
+                  ]}
+                >
+                  Adjust Weight
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowAdjustReps(!showAdjustReps)}
+                style={[styles.adjustToggle, showAdjustReps && styles.adjustToggleActive]}
+              >
+                <Text
+                  style={[
+                    styles.adjustToggleText,
+                    showAdjustReps && styles.adjustToggleTextActive,
+                  ]}
+                >
+                  Adjust Reps
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-  {/* Now at the bottom: Complete Set */}
-  <GradientButton
-    title="Complete Set"
-    onPress={completeSet}
-    gradientColors={colors.gradientSuccess}
-    style={styles.completeButton}
-  />
-</View>
+            {/* Now at the bottom: Complete Set */}
+            <GradientButton
+              title="Complete Set"
+              onPress={completeSet}
+              gradientColors={colors.gradientSuccess}
+              style={styles.completeButton}
+            />
+          </View>
         )}
 
         {/* Next Exercise Preview */}
@@ -710,45 +710,45 @@ const handleProgressionDecision = async (accepted) => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-       <Text style={styles.modalTitle}>
-       {['progression', 'weight', 'reps', 'set'].includes(progressionSuggestion?.type) ? 'Ready to Level Up?' : 'Smart Adjustment'}
-       </Text>
+            <Text style={styles.modalTitle}>
+              {['progression', 'weight', 'reps', 'set'].includes(progressionSuggestion?.type) ? 'Ready to Level Up?' : 'Smart Adjustment'}
+            </Text>
 
             <Text style={styles.modalMessage}>
               {progressionSuggestion?.message}
             </Text>
-       <View style={styles.progressionButtons}>
-  <TouchableOpacity 
-    onPress={() => handleProgressionDecision(true)}
-    style={styles.progressionButton}
-  >
-    <Text style={styles.progressionButtonText}>Accept</Text>
-  </TouchableOpacity>
-  <TouchableOpacity 
-    onPress={() => handleProgressionDecision(false)}
-    style={[styles.progressionButton, styles.progressionButtonSecondary]}
-  >
-  <Text style={[styles.progressionButtonText, styles.progressionButtonTextSecondary]}>
-      Keep Current
-    </Text>
-  </TouchableOpacity>
-</View>
+            <View style={styles.progressionButtons}>
+              <TouchableOpacity
+                onPress={() => handleProgressionDecision(true)}
+                style={styles.progressionButton}
+              >
+                <Text style={styles.progressionButtonText}>Accept</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleProgressionDecision(false)}
+                style={[styles.progressionButton, styles.progressionButtonSecondary]}
+              >
+                <Text style={[styles.progressionButtonText, styles.progressionButtonTextSecondary]}>
+                  Keep Current
+                </Text>
+              </TouchableOpacity>
+            </View>
 
           </View>
         </View>
       </Modal>
       <Modal visible={showGifModal} transparent={true} animationType="fade" onRequestClose={() => setShowGifModal(false)}>
-  <View style={styles.modalBackground}>
-    <View style={styles.modalContainer}>
-      <TouchableOpacity onPress={() => setShowGifModal(false)} style={styles.modalCloseButton}>
-        <Ionicons name="close" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
-      {currentExerciseData?.gif_url && (
-        <Image source={{ uri: currentExerciseData.gif_url }} style={styles.modalGif} resizeMode="contain" />
-      )}
-    </View>
-  </View>
-</Modal>
+        <View style={styles.modalBackground}>
+          <View style={styles.modalContainer}>
+            <TouchableOpacity onPress={() => setShowGifModal(false)} style={styles.modalCloseButton}>
+              <Ionicons name="close" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            {currentExerciseData?.gif_url && (
+              <Image source={{ uri: currentExerciseData.gif_url }} style={styles.modalGif} resizeMode="contain" />
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -1103,87 +1103,87 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   formCheckButton: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: colors.surface,
-  borderRadius: 20,
-  paddingHorizontal: 12,
-  paddingVertical: 8,
-  borderWidth: 1,
-  borderColor: colors.textTertiary,
-},
-formCheckButtonActive: {
-  backgroundColor: colors.primary,
-  borderColor: colors.primary,
-},
-formCheckText: {
-  fontSize: 12,
-  color: colors.textSecondary,
-  marginLeft: 4,
-  fontWeight: 'bold',
-},
-formCheckTextActive: {
-  color: '#FFFFFF',
-},
-formCheckCard: {
-  marginHorizontal: spacing.xl,
-  marginBottom: spacing.lg,
-  padding: spacing.lg,
-  backgroundColor: colors.primary + '10',
-  borderColor: colors.primary,
-  borderWidth: 1,
-},
-gifContainer: {
-  position: 'relative',
-  alignItems: 'center',
-},
-exerciseGif: {
-  width: screenWidth - 120,
-  height: 140,
-  borderRadius: 8,
-},
-gifOverlay: {
-  position: 'absolute',
-  bottom: 8,
-  left: 8,
-  right: 8,
-  backgroundColor: 'rgba(0, 0, 0, 0.7)',
-  padding: 6,
-  borderRadius: 4,
-  alignItems: 'center',
-},
-gifOverlayText: {
-  color: '#FFFFFF',
-  fontSize: 12,
-},
-modalBackground: {
-  flex: 1,
-  backgroundColor: 'rgba(0, 0, 0, 0.9)',
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-modalContainer: {
-  width: screenWidth - 40,
-  backgroundColor: colors.surface,
-  borderRadius: 16,
-  padding: 20,
-  maxHeight: '80%',
-},
-modalCloseButton: {
-  backgroundColor: '#FF4444',
-  borderRadius: 20,
-  width: 40,
-  height: 40,
-  justifyContent: 'center',
-  alignItems: 'center',
-  alignSelf: 'flex-end',
-  marginBottom: 10,
-},
-modalGif: {
-  width: '100%',
-  height: 280,
-  borderRadius: 12,
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.textTertiary,
+  },
+  formCheckButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  formCheckText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginLeft: 4,
+    fontWeight: 'bold',
+  },
+  formCheckTextActive: {
+    color: '#FFFFFF',
+  },
+  formCheckCard: {
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    backgroundColor: colors.primary + '10',
+    borderColor: colors.primary,
+    borderWidth: 1,
+  },
+  gifContainer: {
+    position: 'relative',
+    alignItems: 'center',
+  },
+  exerciseGif: {
+    width: screenWidth - 120,
+    height: 140,
+    borderRadius: 8,
+  },
+  gifOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: 6,
+    borderRadius: 4,
+    alignItems: 'center',
+  },
+  gifOverlayText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: screenWidth - 40,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalCloseButton: {
+    backgroundColor: '#FF4444',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    marginBottom: 10,
+  },
+  modalGif: {
+    width: '100%',
+    height: 280,
+    borderRadius: 12,
+  },
 });
 
 export default WorkoutDisplayScreen;

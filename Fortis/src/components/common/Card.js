@@ -12,7 +12,7 @@ const Card = ({
   variant = 'default',
 }) => {
   const CardWrapper = onPress ? TouchableOpacity : View;
-  
+
   return (
     <CardWrapper
       style={[

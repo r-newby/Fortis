@@ -11,7 +11,7 @@ const AppNavigator = ({ isOnboarded }) => {
   if (isOnboarded === null) return null;
 
   return (
-    
+
     <Stack.Navigator
       screenOptions={{
         headerShown: false,

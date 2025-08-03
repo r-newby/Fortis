@@ -49,19 +49,19 @@ const RestTimer = ({ duration, onComplete, onSkip }) => {
       end={{ x: 1, y: 1 }}
     >
       <Text style={styles.title}>Rest Time</Text>
-      
+
       <View style={styles.timerContainer}>
         <Text style={styles.time}>{formatTime(timeLeft)}</Text>
-        
+
         <View style={styles.progressRing}>
           <View style={styles.progressBackground} />
-          <View 
+          <View
             style={[
               styles.progressFill,
               {
                 transform: [{ rotate: `${progress * 3.6}deg` }]
               }
-            ]} 
+            ]}
           />
         </View>
       </View>
@@ -71,13 +71,13 @@ const RestTimer = ({ duration, onComplete, onSkip }) => {
           style={styles.controlButton}
           onPress={() => setIsPaused(!isPaused)}
         >
-          <Ionicons 
-            name={isPaused ? 'play' : 'pause'} 
-            size={24} 
-            color="#FFFFFF" 
+          <Ionicons
+            name={isPaused ? 'play' : 'pause'}
+            size={24}
+            color="#FFFFFF"
           />
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[styles.controlButton, styles.skipButton]}
           onPress={onSkip}

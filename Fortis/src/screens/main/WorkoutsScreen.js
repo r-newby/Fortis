@@ -19,9 +19,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 
 const WorkoutsScreen = ({ navigation }) => {
-  const { userProfile, workouts, reloadData} = useApp();
-  
-  
+  const { userProfile, workouts, reloadData } = useApp();
+
+
   const startCustomWorkout = () => {
     navigation.navigate('ExerciseLogging');
   };
@@ -55,23 +55,23 @@ const WorkoutsScreen = ({ navigation }) => {
     {
       id: 'full',
       title: 'Full Body',
-      icon: 'body',  
+      icon: 'body',
       color: colors.info,
       muscleGroup: 'full_body',
     },
   ];
 
   const handleQuickStart = (muscleGroup) => {
-    navigation.navigate('EquipmentSelection', { 
+    navigation.navigate('EquipmentSelection', {
       preselectedMuscleGroup: muscleGroup,
-      skipMuscleSelection: true 
+      skipMuscleSelection: true
     });
   };
 
   // Suggestion logic - recommend muscle group based on profile and recent training
   const getSuggestedWorkout = () => {
     const { fitnessLevel, goal } = userProfile || {};
-    
+
     const muscleGroups = [
       { name: 'chest', display: 'Chest', icon: '💪', color: colors.primary },
       { name: 'back', display: 'Back', icon: '🔙', color: colors.secondary },
@@ -92,17 +92,17 @@ const WorkoutsScreen = ({ navigation }) => {
     let prioritizedGroups = muscleGroups;
     if (goal === 'strength') {
       // Strength goals: focus on major compound movements
-      prioritizedGroups = muscleGroups.filter(m => 
+      prioritizedGroups = muscleGroups.filter(m =>
         ['legs', 'back', 'chest', 'shoulders'].includes(m.name)
       );
     } else if (goal === 'muscle') {
       // Muscle building: balanced approach with all muscle groups
-      prioritizedGroups = muscleGroups.filter(m => 
+      prioritizedGroups = muscleGroups.filter(m =>
         ['chest', 'back', 'legs', 'shoulders', 'arms', 'core'].includes(m.name)
       );
     } else if (goal === 'endurance') {
       // Endurance goals: favor full body and cardio
-      prioritizedGroups = muscleGroups.filter(m => 
+      prioritizedGroups = muscleGroups.filter(m =>
         ['full_body', 'legs', 'cardio', 'core'].includes(m.name)
       );
     }
@@ -118,20 +118,20 @@ const WorkoutsScreen = ({ navigation }) => {
     }
 
     const now = new Date();
-    
+
     // Calculate days since last workout for prioritized muscle groups
     const muscleGroupData = prioritizedGroups.map(muscle => {
       const lastWorkout = workouts
         .filter(w => w.muscle_group === muscle.name)
         .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-      
-      const daysSince = lastWorkout 
+
+      const daysSince = lastWorkout
         ? Math.floor((now - new Date(lastWorkout.date)) / (1000 * 60 * 60 * 24))
         : 999; // Never trained
-      
+
       return { ...muscle, daysSince, lastWorkout };
     });
-    
+
     // Return muscle group with most days since last workout
     return muscleGroupData.sort((a, b) => b.daysSince - a.daysSince)[0];
   };
@@ -139,7 +139,7 @@ const WorkoutsScreen = ({ navigation }) => {
   // Suggested workout component
   const SuggestedWorkout = () => {
     const suggestion = getSuggestedWorkout();
-    
+
     if (!suggestion) return null;
 
     const getDaysMessage = () => {
@@ -162,7 +162,7 @@ const WorkoutsScreen = ({ navigation }) => {
           <View style={styles.suggestedText}>
             <Text style={styles.suggestedMuscle}>{suggestion.display} Day</Text>
             <Text style={styles.suggestedTime}>{getDaysMessage()}</Text>
-        
+
           </View>
           <View style={styles.suggestedStats}>
             <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   sectionTitle: {
-     ...typography.h3,
+    ...typography.h3,
     color: colors.textPrimary,
     marginHorizontal: spacing.xl,
     marginBottom: spacing.lg,

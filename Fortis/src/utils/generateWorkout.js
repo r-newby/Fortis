@@ -5,7 +5,7 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
   // No mapping needed since we're using database values directly
   const equipmentMapping = {
     'dumbbell': 'dumbbell',
-    'barbell': 'barbell', 
+    'barbell': 'barbell',
     'body weight': 'body weight',
     'cable': 'cable',
     'resistance band': 'resistance band',
@@ -23,7 +23,7 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
   // Updated muscle group mapping based onactual body_part values
   const muscleGroupMapping = {
     chest: ['chest'],
-    back: ['back'], 
+    back: ['back'],
     legs: ['upper legs', 'lower legs'],
     shoulders: ['shoulders'],
     arms: ['upper arms', 'lower arms'],
@@ -52,10 +52,10 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
 
   // Normalize input
   const normalizedMuscleGroup = muscleGroup ? muscleGroup.toLowerCase().trim() : '';
-  
+
   // Get target muscles for the selected muscle group
   const targetMuscles = muscleGroupMapping[normalizedMuscleGroup] || [normalizedMuscleGroup];
- 
+
 
   // Map equipment to database values
   const dbEquipment = equipment.map(eq => {
@@ -76,31 +76,31 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
     // Check muscle group match
     const muscleMatch = targetMuscles.some(muscle => {
       const normalizedMuscle = muscle.toLowerCase().trim();
-      return exBodyPart.includes(normalizedMuscle) || 
-             exTarget.includes(normalizedMuscle) ||
-             exBodyPart === normalizedMuscle ||
-             exTarget === normalizedMuscle;
+      return exBodyPart.includes(normalizedMuscle) ||
+        exTarget.includes(normalizedMuscle) ||
+        exBodyPart === normalizedMuscle ||
+        exTarget === normalizedMuscle;
     });
 
     // Check equipment match - handle compound equipment strings
     const equipmentMatch = dbEquipment.some(eq => {
       const normalizedEq = eq.toLowerCase().trim();
-      
+
       // Exact match
       if (exEquipment === normalizedEq) return true;
-      
+
       // Handle compound equipment strings (e.g., "dumbbell, exercise ball")
       if (exEquipment.includes(',')) {
         const equipmentParts = exEquipment.split(',').map(part => part.trim());
         return equipmentParts.some(part => part === normalizedEq);
       }
-      
+
       // Handle equipment with parentheses (e.g., "body weight (with resistance band)")
       if (exEquipment.includes('(')) {
         const mainEquipment = exEquipment.split('(')[0].trim();
         return mainEquipment === normalizedEq;
       }
-      
+
       // Partial match for similar equipment
       return exEquipment.includes(normalizedEq);
     });
@@ -116,10 +116,10 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
     const compoundKeywords = ['press', 'row', 'squat', 'deadlift', 'pull', 'push'];
     const aName = (a.name || '').toLowerCase();
     const bName = (b.name || '').toLowerCase();
-    
+
     const aIsCompound = compoundKeywords.some(keyword => aName.includes(keyword));
     const bIsCompound = compoundKeywords.some(keyword => bName.includes(keyword));
-    
+
     if (aIsCompound && !bIsCompound) return -1;
     if (!aIsCompound && bIsCompound) return 1;
     return 0;
@@ -148,19 +148,19 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
   const selectedExercises = [];
   for (let i = 0; i < prioritizedExercises.length && selectedExercises.length < exerciseCount; i++) {
     const exercise = prioritizedExercises[i];
-    
+
     // Check for similar exercises (avoid duplicates)
     const isSimilar = selectedExercises.some(selected => {
       const exerciseWords = (exercise.name || '').toLowerCase().split(' ');
       const selectedWords = (selected.name || '').toLowerCase().split(' ');
-      
-      const sharedWords = exerciseWords.filter(word => 
+
+      const sharedWords = exerciseWords.filter(word =>
         selectedWords.includes(word) && word.length > 3
       );
-      
+
       return sharedWords.length >= 2;
     });
-    
+
     if (!isSimilar) {
       selectedExercises.push(exercise);
     }
@@ -169,11 +169,11 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
   // Generate workout with proper sets, reps, and weights
   const workout = selectedExercises.map((exercise, index) => {
     const exerciseName = (exercise.name || '').toLowerCase();
-    
+
     // Adjust sets and reps based on exercise type, position, and workout type
     let exerciseSets = Math.round(sets * modifier);
     let exerciseReps = reps;
-    
+
     // Special handling for cardio
     if (normalizedMuscleGroup === 'cardio') {
       exerciseSets = 1; // Cardio typically one continuous set
@@ -181,7 +181,7 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
     } else {
       // First exercise gets more sets (usually compound)
       if (index === 0) exerciseSets = Math.max(exerciseSets, sets);
-      
+
       // Adjust reps based on exercise type
       if (exerciseName.includes('curl') || exerciseName.includes('raise') || exerciseName.includes('fly')) {
         exerciseReps = Math.max(12, reps); // Isolation exercises
@@ -189,11 +189,11 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
         exerciseReps = Math.max(8, reps - 2); // Compound movements
       }
     }
-    
+
     // Calculate weight based on equipment and exercise type
     let weight = null;
     const equipment = (exercise.equipment || '').toLowerCase();
-    
+
     if (equipment.includes('dumbbell')) {
       if (exerciseName.includes('curl')) weight = Math.round(15 * modifier);
       else if (exerciseName.includes('press')) weight = Math.round(25 * modifier);
@@ -205,7 +205,7 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
       else weight = Math.round(65 * modifier);
     }
 
-   
+
 
     return {
       id: exercise.id,
@@ -221,6 +221,6 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
   });
 
 
-  
+
   return workout;
 }

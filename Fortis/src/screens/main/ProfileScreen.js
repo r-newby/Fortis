@@ -26,16 +26,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width } = Dimensions.get('window');
 
 const ProfileScreen = ({ navigation }) => {
-  const { 
-    clearAllData, 
-    workouts, 
-    personalRecords, 
-    userProfile, 
-    user, 
-    updateUserProfile, 
-    reloadData 
+  const {
+    clearAllData,
+    workouts,
+    personalRecords,
+    userProfile,
+    user,
+    updateUserProfile,
+    reloadData
   } = useApp();
-  
+
   // Settings state (stored in AsyncStorage since no user_settings table)
   const [settings, setSettings] = useState({
     notifications: true,
@@ -52,7 +52,7 @@ const ProfileScreen = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Member since date
-  const memberSince = userProfile?.created_at 
+  const memberSince = userProfile?.created_at
     ? new Date(userProfile.created_at).toLocaleDateString()
     : new Date().toLocaleDateString();
 
@@ -117,9 +117,9 @@ const ProfileScreen = ({ navigation }) => {
     }
 
     setIsLoading(true);
-    
+
     const updateData = {};
-    
+
     if (editingField === 'username') {
       updateData.username = editValue.trim();
     } else if (editingField === 'fitness_level') {
@@ -129,7 +129,7 @@ const ProfileScreen = ({ navigation }) => {
     }
 
     const success = await updateUserProfile(updateData);
-    
+
     if (success) {
       setShowEditModal(false);
       await reloadData(); // Reload data from Supabase
@@ -137,7 +137,7 @@ const ProfileScreen = ({ navigation }) => {
     } else {
       Alert.alert('Error', 'Failed to update profile. Please try again.');
     }
-    
+
     setIsLoading(false);
   };
 
@@ -291,7 +291,7 @@ const ProfileScreen = ({ navigation }) => {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.settingsButton}
             onPress={() => setShowSettingsModal(true)}
           >
@@ -318,7 +318,7 @@ const ProfileScreen = ({ navigation }) => {
                   </Text>
                 </LinearGradient>
               </View>
-              
+
               <Text style={styles.profileName}>{userProfile?.username || 'User'}</Text>
               <Text style={styles.profileSubtitle}>
                 {getFitnessLevelText()} • {getGoalText()}
@@ -356,10 +356,10 @@ const ProfileScreen = ({ navigation }) => {
             <Card key={item.id} style={styles.listItem} onPress={item.onPress}>
               <View style={styles.listItemContent}>
                 <View style={styles.listItemLeft}>
-                  <Ionicons 
-                    name={item.icon} 
-                    size={24} 
-                    color={item.danger ? colors.error : colors.primary} 
+                  <Ionicons
+                    name={item.icon}
+                    size={24}
+                    color={item.danger ? colors.error : colors.primary}
                   />
                   <Text style={[
                     styles.listItemTitle,

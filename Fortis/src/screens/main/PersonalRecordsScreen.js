@@ -102,12 +102,12 @@ const PersonalRecordsScreen = ({ navigation }) => {
     filtered.sort((a, b) => {
       const volumeA = a[1].volume || 0;
       const volumeB = b[1].volume || 0;
-      
+
       // For bodyweight exercises, sort by reps instead
       if (volumeA === 0 && volumeB === 0) {
         return b[1].reps - a[1].reps;
       }
-      
+
       return volumeB - volumeA;
     });
 

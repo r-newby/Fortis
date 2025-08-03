@@ -37,61 +37,61 @@ const WorkoutStackNavigator = () => {
         animationDuration: 300,
       }}
     >
-      <Stack.Screen 
-        name="WorkoutsList" 
+      <Stack.Screen
+        name="WorkoutsList"
         component={WorkoutsScreen}
         options={{
           animation: 'fade',
         }}
       />
-     
-      <Stack.Screen 
-        name="EquipmentSelection" 
+
+      <Stack.Screen
+        name="EquipmentSelection"
         component={EquipmentSelectionScreen}
         options={{
           animation: 'slide_from_bottom',
-        
+
         }}
       />
 
-       <Stack.Screen 
-        name="WorkoutGenerator" 
+      <Stack.Screen
+        name="WorkoutGenerator"
         component={WorkoutGenerationScreen}
         options={{
           animation: 'slide_from_bottom',
-          
+
         }}
       />
-      <Stack.Screen 
-        name="MuscleGroupSelection" 
+      <Stack.Screen
+        name="MuscleGroupSelection"
         component={MuscleGroupSelectionScreen}
         options={{
           animation: 'slide_from_right',
         }}
       />
-      <Stack.Screen 
-        name="WorkoutDisplay" 
+      <Stack.Screen
+        name="WorkoutDisplay"
         component={WorkoutDisplayScreen}
         options={{
           animation: 'fade_from_bottom',
         }}
       />
-      <Stack.Screen 
-        name="ExerciseLogging" 
+      <Stack.Screen
+        name="ExerciseLogging"
         component={ExerciseLoggingScreen}
         options={{
           animation: 'slide_from_bottom',
         }}
       />
-      
-      
-      <Stack.Screen
-       name="WorkoutSummary"
-       component={WorkoutSummaryScreen}
-       options={{ headerShown: false }}
-       />
 
-       
+
+      <Stack.Screen
+        name="WorkoutSummary"
+        component={WorkoutSummaryScreen}
+        options={{ headerShown: false }}
+      />
+
+
     </Stack.Navigator>
   );
 };
@@ -99,7 +99,7 @@ const WorkoutStackNavigator = () => {
 // Animated Tab Bar Icon Component
 const TabBarIcon = ({ name, focused, label }) => {
   // Remove all the useRef and useEffect animation code
-  
+
   return (
     <View style={styles.tabBarIconContainer}>
       <Ionicons
@@ -107,10 +107,10 @@ const TabBarIcon = ({ name, focused, label }) => {
         size={24}
         color={focused ? colors.primary : colors.textSecondary}
       />
-      <Text 
+      <Text
         style={[
           styles.tabBarLabel,
-          { 
+          {
             color: focused ? colors.primary : colors.textSecondary,
             opacity: focused ? 1 : 0.7,
           }

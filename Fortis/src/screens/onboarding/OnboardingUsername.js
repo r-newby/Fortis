@@ -21,41 +21,41 @@ const OnboardingUsername = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
 
-const { updateUserProfile } = useApp();
-const [loading, setLoading] = useState(false);
+  const { updateUserProfile } = useApp();
+  const [loading, setLoading] = useState(false);
 
-const handleContinue = async () => {
-  const trimmedUsername = username.trim();
+  const handleContinue = async () => {
+    const trimmedUsername = username.trim();
 
-  if (trimmedUsername.length < 3) {
-    setError('Username must be at least 3 characters');
-    return;
-  }
+    if (trimmedUsername.length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
 
-  if (trimmedUsername.length > 20) {
-    setError('Username must be less than 20 characters');
-    return;
-  }
+    if (trimmedUsername.length > 20) {
+      setError('Username must be less than 20 characters');
+      return;
+    }
 
-  const validUsername = /^[a-zA-Z0-9_]+$/.test(trimmedUsername);
-  if (!validUsername) {
-    setError('Username can only contain letters, numbers, and underscores');
-    return;
-  }
+    const validUsername = /^[a-zA-Z0-9_]+$/.test(trimmedUsername);
+    if (!validUsername) {
+      setError('Username can only contain letters, numbers, and underscores');
+      return;
+    }
 
-  setError('');
-  setLoading(true);
+    setError('');
+    setLoading(true);
 
-  const success = await updateUserProfile({ username: trimmedUsername });
+    const success = await updateUserProfile({ username: trimmedUsername });
 
-  setLoading(false);
+    setLoading(false);
 
-  if (success) {
-    navigation.navigate('FitnessLevel', { username: trimmedUsername });
-  } else {
-    setError('Failed to save username. Try again.');
-  }
-};
+    if (success) {
+      navigation.navigate('FitnessLevel', { username: trimmedUsername });
+    } else {
+      setError('Failed to save username. Try again.');
+    }
+  };
 
 
 
@@ -65,7 +65,7 @@ const handleContinue = async () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -78,7 +78,7 @@ const handleContinue = async () => {
             >
               <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
-            
+
             {/* Progress Indicator */}
             <View style={styles.progressContainer}>
               <View style={styles.progressBar}>
@@ -116,10 +116,10 @@ const handleContinue = async () => {
           {/* Button */}
           <View style={styles.buttonContainer}>
             <GradientButton
-  title={loading ? 'Saving...' : 'Continue'}
-  onPress={handleContinue}
-  disabled={!username.trim() || loading}
-/>
+              title={loading ? 'Saving...' : 'Continue'}
+              onPress={handleContinue}
+              disabled={!username.trim() || loading}
+            />
 
           </View>
         </ScrollView>

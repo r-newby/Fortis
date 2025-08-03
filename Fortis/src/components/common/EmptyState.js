@@ -5,12 +5,12 @@ import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 
-const EmptyState = ({ 
-  icon, 
-  title, 
-  message, 
-  action, 
-  style 
+const EmptyState = ({
+  icon,
+  title,
+  message,
+  action,
+  style
 }) => {
   return (
     <View style={[styles.container, style]}>

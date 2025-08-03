@@ -7,12 +7,12 @@ import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { spacing } from '../../utils/spacing';
 
-const ExerciseCard = ({ 
-  exercise, 
-  index, 
-  isExpanded, 
+const ExerciseCard = ({
+  exercise,
+  index,
+  isExpanded,
   onPress,
-  showDetails = true 
+  showDetails = true
 }) => {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
@@ -21,7 +21,7 @@ const ExerciseCard = ({
           <View style={styles.numberContainer}>
             <Text style={styles.number}>{index + 1}</Text>
           </View>
-          
+
           <View style={styles.info}>
             <Text style={styles.name}>{exercise.name}</Text>
             <View style={styles.tags}>

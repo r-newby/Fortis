@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo} from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -167,36 +167,36 @@ const WorkoutHistoryScreen = ({ navigation }) => {
     );
   };
 
-const renderHeader = useMemo(() => (
-  <View>
-    <View style={styles.header}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-        <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-      </TouchableOpacity>
-      <Text style={styles.title}>Workout History</Text>
-    </View>
-
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.filterRow}
-    >
-      {filterOptions.map(opt => (
-        <TouchableOpacity
-          key={opt.value}
-          onPress={() => {
-            setFilter(opt.value);
-          }}
-          style={[styles.filterButton, filter === opt.value && styles.filterButtonSelected]}
-        >
-          <Text style={[styles.filterButtonText, filter === opt.value && styles.filterButtonTextSelected]}>
-            {opt.label}
-          </Text>
+  const renderHeader = useMemo(() => (
+    <View>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-      ))}
-    </ScrollView>
-  </View>
-), [filter]);
+        <Text style={styles.title}>Workout History</Text>
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+      >
+        {filterOptions.map(opt => (
+          <TouchableOpacity
+            key={opt.value}
+            onPress={() => {
+              setFilter(opt.value);
+            }}
+            style={[styles.filterButton, filter === opt.value && styles.filterButtonSelected]}
+          >
+            <Text style={[styles.filterButtonText, filter === opt.value && styles.filterButtonTextSelected]}>
+              {opt.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  ), [filter]);
 
 
   return (

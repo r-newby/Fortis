@@ -45,21 +45,21 @@ const OnboardingFitnessLevel = ({ navigation, route }) => {
   const [selectedLevel, setSelectedLevel] = useState('');
   const { username, authUserId } = route.params;
 
-// After selecting a fitness level, navigate to the Goal screen
-const handleContinue = () => {
-  if (!selectedLevel) return;
-  navigation.navigate('Goal', {
-    authUserId,
-    username,
-    fitnessLevel: selectedLevel,
-  });
-};
+  // After selecting a fitness level, navigate to the Goal screen
+  const handleContinue = () => {
+    if (!selectedLevel) return;
+    navigation.navigate('Goal', {
+      authUserId,
+      username,
+      fitnessLevel: selectedLevel,
+    });
+  };
 
 
 
   const FitnessLevelCard = ({ level }) => {
     const isSelected = selectedLevel === level.id;
-    
+
     return (
       <TouchableOpacity
         onPress={() => setSelectedLevel(level.id)}
@@ -95,7 +95,7 @@ const handleContinue = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -107,7 +107,7 @@ const handleContinue = () => {
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          
+
           {/* Progress Indicator */}
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>

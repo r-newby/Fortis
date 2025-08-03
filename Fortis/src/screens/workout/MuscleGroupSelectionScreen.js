@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  SafeAreaView, 
-  ScrollView, 
-  TouchableOpacity, 
-  Alert 
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../../components/common/Card';
@@ -92,7 +92,7 @@ const MuscleGroupSelectionScreen = ({ navigation, route }) => {
   const { selectedEquipment, preselectedMuscleGroup } = route.params;
 
   useEffect(() => {
-   
+
     // If coming from quick start, pre-select the muscle group
     if (preselectedMuscleGroup) {
       setSelectedMuscleGroup(preselectedMuscleGroup);
@@ -158,7 +158,7 @@ const MuscleGroupSelectionScreen = ({ navigation, route }) => {
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          
+
           <View style={styles.headerText}>
             <Text style={styles.title}>Target Muscle Group</Text>
             <Text style={styles.subtitle}>What do you want to train today?</Text>

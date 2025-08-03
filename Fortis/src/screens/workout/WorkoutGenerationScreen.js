@@ -57,24 +57,24 @@ const toTitleCase = (str) => {
 const calculateRestTime = (exercise) => {
   const name = exercise.name.toLowerCase();
   const equipment = exercise.equipment.toLowerCase();
-  
+
   // Compound movements get longer rest
   const compoundKeywords = ['squat', 'deadlift', 'bench', 'press', 'row', 'pull'];
   if (compoundKeywords.some(keyword => name.includes(keyword))) {
     return 180; // 3 minutes
   }
-  
+
   // Barbell exercises get longer rest
   if (equipment.includes('barbell')) {
     return 150; // 2.5 minutes
   }
-  
+
   // Isolation exercises get shorter rest
   const isolationKeywords = ['curl', 'raise', 'fly', 'extension', 'calf'];
   if (isolationKeywords.some(keyword => name.includes(keyword))) {
     return 90; // 1.5 minutes
   }
-  
+
   return 120; // 2 minutes default
 };
 
@@ -91,7 +91,7 @@ const WorkoutGenerationScreen = ({ route, navigation }) => {
     estimatedTime: 0,
     totalVolume: 0,
   });
-  
+
   // State management for GIF demonstration functionality
   const [expandedExercises, setExpandedExercises] = useState(new Set());
   const [selectedGif, setSelectedGif] = useState(null);
@@ -155,7 +155,7 @@ const WorkoutGenerationScreen = ({ route, navigation }) => {
         ...exercise,
         restTime: calculateRestTime(exercise),
       }));
-      
+
       setGeneratedWorkout(enhancedWorkout);
       calculateWorkoutStats(enhancedWorkout);
     } else {
@@ -165,29 +165,29 @@ const WorkoutGenerationScreen = ({ route, navigation }) => {
     setIsLoading(false);
   };
 
-const calculateWorkoutStats = (workout) => {
-  const totalSets = workout.reduce((sum, ex) => sum + (ex?.sets ?? 0), 0);
+  const calculateWorkoutStats = (workout) => {
+    const totalSets = workout.reduce((sum, ex) => sum + (ex?.sets ?? 0), 0);
 
-  const avgSetTime = 45;
-  const totalRestTime = workout.reduce((sum, ex) => {
-    if (!ex?.sets || !ex?.restTime) return sum;
-    return sum + (ex.sets - 1) * ex.restTime;
-  }, 0);
+    const avgSetTime = 45;
+    const totalRestTime = workout.reduce((sum, ex) => {
+      if (!ex?.sets || !ex?.restTime) return sum;
+      return sum + (ex.sets - 1) * ex.restTime;
+    }, 0);
 
-  const totalSeconds = totalSets * avgSetTime + totalRestTime;
-  const estimatedTime = Math.ceil(totalSeconds / 60);
+    const totalSeconds = totalSets * avgSetTime + totalRestTime;
+    const estimatedTime = Math.ceil(totalSeconds / 60);
 
-  const totalVolume = workout.reduce((sum, ex) => {
-    if (!ex?.sets || !ex?.reps) return sum;
-    return sum + (ex.sets * ex.reps * (ex.weight ?? 0));
-  }, 0);
+    const totalVolume = workout.reduce((sum, ex) => {
+      if (!ex?.sets || !ex?.reps) return sum;
+      return sum + (ex.sets * ex.reps * (ex.weight ?? 0));
+    }, 0);
 
-  setWorkoutStats({
-    totalSets,
-    estimatedTime,
-    totalVolume,
-  });
-};
+    setWorkoutStats({
+      totalSets,
+      estimatedTime,
+      totalVolume,
+    });
+  };
 
 
   // Toggle exercise demonstration visibility for individual exercises
@@ -209,7 +209,7 @@ const calculateWorkoutStats = (workout) => {
 
   const renderWorkout = ({ item, index }) => {
     const isExpanded = expandedExercises.has(item.id);
-    
+
     return (
       <Card style={[
         styles.exerciseCard,
@@ -221,14 +221,14 @@ const calculateWorkoutStats = (workout) => {
               <Text style={styles.exerciseName}>{toTitleCase(item.name)}</Text>
               {/* Demo button appears only for exercises with available GIFs */}
               {item.gif_url && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => toggleExerciseDemo(item.id)}
                   style={[styles.demoButton, isExpanded && styles.demoButtonActive]}
                 >
-                  <Ionicons 
-                    name={isExpanded ? "eye-off" : "eye"} 
-                    size={16} 
-                    color={isExpanded ? '#FFFFFF' : colors.textSecondary} 
+                  <Ionicons
+                    name={isExpanded ? "eye-off" : "eye"}
+                    size={16}
+                    color={isExpanded ? '#FFFFFF' : colors.textSecondary}
                   />
                   <Text style={[styles.demoButtonText, isExpanded && styles.demoButtonTextActive]}>
                     {isExpanded ? 'Hide' : 'Demo'}
@@ -259,7 +259,7 @@ const calculateWorkoutStats = (workout) => {
             {/* Collapsible exercise demonstration section */}
             {isExpanded && item.gif_url && (
               <View style={styles.demoSection}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => openGifModal(item.gif_url, item.name)}
                   style={styles.gifContainer}
                 >
@@ -322,30 +322,30 @@ const calculateWorkoutStats = (workout) => {
           renderItem={renderWorkout}
           ListHeaderComponent={
             <View style={styles.headerSection}>
-            
+
               {/* About This Workout - Merged */}
               <Card style={styles.aboutCard}>
                 <View style={styles.aboutHeader}>
                   <Ionicons name="information-circle" size={20} color={colors.info} />
                   <Text style={styles.aboutTitle}>About This Workout</Text>
                 </View>
-                
+
                 <Text style={styles.aboutText}>Personalized based on:</Text>
-                  <View style={styles.aboutGrid}>
-                    <Text style={styles.aboutItem}>
-                      • {userProfile?.fitnessLevel?.charAt(0).toUpperCase() + userProfile?.fitnessLevel?.slice(1)} fitness level
-                    </Text>
-                    <Text style={styles.aboutItem}>
-                      • {userProfile?.goal?.charAt(0).toUpperCase() + userProfile?.goal?.slice(1)} training goal
-                    </Text>
-                    <Text style={styles.aboutItem}>
-                      • {selectedMuscleGroup.charAt(0).toUpperCase() + selectedMuscleGroup.slice(1).replace('_', ' ')} focus
-                    </Text>
-                    <Text style={styles.aboutItem}>
-                      • {selectedEquipment.length} equipment type(s) available
-                    </Text>
-                  </View>
-                
+                <View style={styles.aboutGrid}>
+                  <Text style={styles.aboutItem}>
+                    • {userProfile?.fitnessLevel?.charAt(0).toUpperCase() + userProfile?.fitnessLevel?.slice(1)} fitness level
+                  </Text>
+                  <Text style={styles.aboutItem}>
+                    • {userProfile?.goal?.charAt(0).toUpperCase() + userProfile?.goal?.slice(1)} training goal
+                  </Text>
+                  <Text style={styles.aboutItem}>
+                    • {selectedMuscleGroup.charAt(0).toUpperCase() + selectedMuscleGroup.slice(1).replace('_', ' ')} focus
+                  </Text>
+                  <Text style={styles.aboutItem}>
+                    • {selectedEquipment.length} equipment type(s) available
+                  </Text>
+                </View>
+
                 <View style={styles.featuresSection}>
                   <Text style={styles.featuresLabel}>Features included:</Text>
                   <View style={styles.featuresGrid}>
@@ -399,7 +399,7 @@ const calculateWorkoutStats = (workout) => {
                     </View>
                   )}
                 </View>
-                
+
                 {/* Prompt users to preview exercise form before starting workout */}
                 {exercisesWithGifs > 0 && (
                   <View style={styles.demoPrompt}>
@@ -427,7 +427,7 @@ const calculateWorkoutStats = (workout) => {
                 }
                 style={styles.startButton}
               />
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.regenerateButton}
                 onPress={generateWorkoutForUser}
               >
@@ -454,7 +454,7 @@ const calculateWorkoutStats = (workout) => {
               <Text style={styles.modalTitle}>
                 {selectedGif ? toTitleCase(selectedGif.name) : ''}
               </Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setShowGifModal(false)}
                 style={styles.modalCloseButton}
               >

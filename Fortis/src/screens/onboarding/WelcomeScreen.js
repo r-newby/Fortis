@@ -41,16 +41,16 @@ const WelcomeScreen = ({ navigation }) => {
           {/* Logo Container */}
           <View style={styles.logoContainer}>
             <View style={styles.logo}>
-  
-    <View style={styles.logoInner}>
-      <Image
-        source={require('../../../assets/adaptive-icon-Photoroom.png')}
-        style={styles.logoImage}
-        resizeMode="contain"
-      />
-    </View>
 
-</View>
+              <View style={styles.logoInner}>
+                <Image
+                  source={require('../../../assets/adaptive-icon-Photoroom.png')}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
+              </View>
+
+            </View>
             <Text style={styles.brandText}>FORTIS</Text>
           </View>
 
@@ -62,7 +62,7 @@ const WelcomeScreen = ({ navigation }) => {
 
           {/* Description */}
           <Text style={styles.description}>
-            Track your workouts, monitor progress, and achieve your fitness goals 
+            Track your workouts, monitor progress, and achieve your fitness goals
             with intelligent progressive overload tracking.
           </Text>
 
@@ -73,10 +73,10 @@ const WelcomeScreen = ({ navigation }) => {
               onPress={() => navigation.navigate('SignUp')}
               style={styles.button}
             />
-            
+
             <View style={styles.loginContainer}>
               <Text style={styles.loginText}>Already have an account? </Text>
-              <Text 
+              <Text
                 style={styles.loginLink}
                 onPress={() => navigation.navigate('Login')}
               >
@@ -109,29 +109,29 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxxl,
   },
   logo: {
-  borderRadius: 40,
-  overflow: 'hidden',
-},
+    borderRadius: 40,
+    overflow: 'hidden',
+  },
 
-logoGradient: {
-  width: 80,
-  height: 80,
-  borderRadius: 40,
-  justifyContent: 'center',
-  alignItems: 'center',
-},
+  logoGradient: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
-logoInner: {
-  width: 250,
-  height: 250,
-  justifyContent: 'center',
-  alignItems: 'center',
-},
+  logoInner: {
+    width: 250,
+    height: 250,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
-logoImage: {
-  width: '100%',
-  height: '100%',
-},
+  logoImage: {
+    width: '100%',
+    height: '100%',
+  },
 
   brandText: {
     ...typography.displayLarge,
