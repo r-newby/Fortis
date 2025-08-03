@@ -128,8 +128,6 @@ const ProfileScreen = ({ navigation }) => {
       updateData.goal = editValue.toLowerCase();
     }
 
-    console.log('🔄 Updating profile:', updateData);
-
     const success = await updateUserProfile(updateData);
     
     if (success) {
@@ -161,7 +159,6 @@ const ProfileScreen = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('🔄 Logging out...');
               await supabase.auth.signOut();
               // Clear local settings
               await AsyncStorage.removeItem(`settings_${user?.id}`);
@@ -186,7 +183,6 @@ const ProfileScreen = ({ navigation }) => {
           text: 'Clear',
           style: 'destructive',
           onPress: async () => {
-            console.log('🗑️ Clearing all data...');
             const success = await clearAllData();
             if (success) {
               Alert.alert('Success', 'All data cleared successfully');
@@ -203,7 +199,6 @@ const ProfileScreen = ({ navigation }) => {
 
   // Navigate to Personal Records with data
   const handlePersonalRecords = () => {
-    console.log('📈 Navigating to Personal Records with', Object.keys(personalRecords).length, 'PRs');
     navigation.navigate('PersonalRecords');
   };
 

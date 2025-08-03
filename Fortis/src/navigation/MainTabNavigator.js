@@ -28,7 +28,6 @@ const Stack = createNativeStackNavigator();
 
 // Workout Stack Navigator with animations
 const WorkoutStackNavigator = () => {
-  console.log('Rendering MainTabNavigator');
   return (
     <Stack.Navigator
       screenOptions={{

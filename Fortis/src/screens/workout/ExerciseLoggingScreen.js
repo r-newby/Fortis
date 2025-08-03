@@ -77,8 +77,6 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     }
 
     const fetchExercises = async () => {
-      console.log('Searching for:', searchQuery);
-
       try {
         // Split search query into words for multi-field search
         const searchTerms = searchQuery.toLowerCase().trim().split(' ');
@@ -105,7 +103,6 @@ const ExerciseLoggingScreen = ({ navigation }) => {
           console.error('Error fetching exercises:', error);
           setSearchResults([]);
         } else {
-          console.log(`Found ${data?.length || 0} exercises for "${searchQuery}"`);
 
           // Sort results by relevance (exercises matching multiple terms first)
           const sortedResults = data?.sort((a, b) => {
@@ -143,10 +140,10 @@ const ExerciseLoggingScreen = ({ navigation }) => {
   const isBodyweightExercise = (exercise) => {
     if (!exercise?.equipment) return false;
     const equipment = exercise.equipment.toLowerCase();
-    return equipment.includes('bodyweight') || 
-           equipment.includes('body weight') || 
-           equipment.includes('assisted') ||
-           equipment === 'none';
+    return equipment.includes('bodyweight') ||
+      equipment.includes('body weight') ||
+      equipment.includes('assisted') ||
+      equipment === 'none';
   };
 
   // Adds a new exercise to the workout and clears search
@@ -160,52 +157,51 @@ const ExerciseLoggingScreen = ({ navigation }) => {
     setSearchQuery('');
     setSearchResults([]);
   };
-const calculateWorkoutVolume = (exercises) => {
-  if (!Array.isArray(exercises)) {
-    console.warn('calculateWorkoutVolume: Expected an array but got:', exercises);
-    return 0;
-  }
-
-  return exercises.reduce((totalVolume, exercise, index) => {
-    if (!exercise || typeof exercise !== 'object') {
-      console.warn(`Skipping invalid exercise at index ${index}:`, exercise);
-      return totalVolume;
+  const calculateWorkoutVolume = (exercises) => {
+    if (!Array.isArray(exercises)) {
+      console.warn('calculateWorkoutVolume: Expected an array but got:', exercises);
+      return 0;
     }
 
-    const sets = Array.isArray(exercise.completedSets)
-      ? exercise.completedSets
-      : [];
-
-    if (sets.length === 0) {
-      console.warn(`No completed sets for exercise at index ${index} (${exercise.exerciseName || 'Unnamed'})`);
-    }
-
-    console.log(`Completed sets for "${exercise.exerciseName}":`, sets);
-
-    const exerciseVolume = sets.reduce((sum, set, setIndex) => {
-      const reps = Number(set?.reps);
-      let weight = Number(set?.weight);
-
-      if (isNaN(reps)) {
-        console.warn(`Invalid reps at exercise[${index}].completedSets[${setIndex}]:`, set);
-        return sum;
+    return exercises.reduce((totalVolume, exercise, index) => {
+      if (!exercise || typeof exercise !== 'object') {
+        console.warn(`Skipping invalid exercise at index ${index}:`, exercise);
+        return totalVolume;
       }
 
-      if (isNaN(weight)) {
-        console.warn(`Invalid weight at exercise[${index}].completedSets[${setIndex}]:`, set);
-        return sum;
+      const sets = Array.isArray(exercise.completedSets)
+        ? exercise.completedSets
+        : [];
+
+      if (sets.length === 0) {
+        console.warn(`No completed sets for exercise at index ${index} (${exercise.exerciseName || 'Unnamed'})`);
       }
 
-      // Treat bodyweight as weight = 1 for volume calc
-      if (weight === 0) weight = 1;
 
-      return sum + (reps * weight);
+      const exerciseVolume = sets.reduce((sum, set, setIndex) => {
+        const reps = Number(set?.reps);
+        let weight = Number(set?.weight);
+
+        if (isNaN(reps)) {
+          console.warn(`Invalid reps at exercise[${index}].completedSets[${setIndex}]:`, set);
+          return sum;
+        }
+
+        if (isNaN(weight)) {
+          console.warn(`Invalid weight at exercise[${index}].completedSets[${setIndex}]:`, set);
+          return sum;
+        }
+
+        // Treat bodyweight as weight = 1 for volume calc
+        if (weight === 0) weight = 1;
+
+        return sum + (reps * weight);
+      }, 0);
+
+
+      return totalVolume + exerciseVolume;
     }, 0);
-
-    console.log(`Exercise [${index}] "${exercise.exerciseName}" volume: ${exerciseVolume}`);
-    return totalVolume + exerciseVolume;
-  }, 0);
-};
+  };
 
 
 
@@ -245,12 +241,12 @@ const calculateWorkoutVolume = (exercises) => {
             if (removeExerciseFromWorkout) {
               removeExerciseFromWorkout(exerciseId);
             }
-            
+
             // Clean up local exercise logs
             const updatedLogs = { ...exerciseLogs };
             delete updatedLogs[exerciseId];
             setExerciseLogs(updatedLogs);
-            
+
             // Remove from expanded exercises
             const newExpanded = new Set(expandedExercises);
             newExpanded.delete(exerciseId);
@@ -282,7 +278,7 @@ const calculateWorkoutVolume = (exercises) => {
     // Check if this is a bodyweight exercise to set default weight
     const exercise = currentWorkout?.exercises.find(ex => ex.exerciseId === exerciseId);
     const isBodyweight = isBodyweightExercise(exercise);
-    
+
     setExerciseLogs({
       ...exerciseLogs,
       [exerciseId]: [
@@ -299,36 +295,32 @@ const calculateWorkoutVolume = (exercises) => {
 
   // Handles full workout submission: saves sets and inserts into Supabase
   const handleSubmit = async () => {
-    console.log('Submit started');
-
     // Sync all input sets to context
     for (const exerciseId in exerciseLogs) {
       const logs = exerciseLogs[exerciseId];
       const exercise = currentWorkout?.exercises.find(ex => ex.exerciseId === exerciseId);
       const isBodyweight = isBodyweightExercise(exercise);
-      
+
       logs.forEach((set, index) => {
         const reps = parseInt(set.reps);
         const weight = isBodyweight ? 1 : parseFloat(set.weight);
-        
+
         if (!isNaN(reps) && !isNaN(weight)) {
           addSet(exerciseId, { reps, weight }, index);
         }
       });
     }
-
-    console.log('Calling completeWorkout...');
     const finished = completeWorkout();
-    console.log('Finished workout:', finished);
+
 
     if (!finished) {
       Alert.alert('Error', 'No workout to complete.');
       return;
     }
-    console.log("CALCULATING WORKOUT:");
+
     const { exercises, date, muscleGroup } = finished;
     let totalVolume = calculateWorkoutVolume(exercises);
-    console.log("TOTAL:", totalVolume);
+
 
 
     const { data: workoutInsert, error } = await supabase
@@ -347,8 +339,6 @@ const calculateWorkoutVolume = (exercises) => {
       Alert.alert('Error', 'Failed to save workout.');
       return;
     }
-
-    console.log('Workout inserted:', workoutInsert);
     const workoutId = workoutInsert.id;
 
     // Insert each exercise summary (averaged per set)
@@ -370,27 +360,22 @@ const calculateWorkoutVolume = (exercises) => {
         actual_weight: avgWeight,
       });
     }
-
-    console.log('All exercises saved with actual values for PR calculation');
-    console.log('Navigating to WorkoutSummary with:', finished);
-
     setSearchQuery('');
     setSearchResults([]);
     setExerciseLogs({});
     setExpandedExercises(new Set());
-    
-    console.log('NAVIGATION STATE:', JSON.stringify(navigation.getState(), null, 2));
-    
-navigation.navigate('Workouts', {
-  screen: 'WorkoutSummary',
-  params: { workout: finished },
-});
 
 
-setTimeout(() => {
-  setNeedsReload(true);
-  
-}, 250);
+    navigation.navigate('Workouts', {
+      screen: 'WorkoutSummary',
+      params: { workout: finished },
+    });
+
+
+    setTimeout(() => {
+      setNeedsReload(true);
+
+    }, 250);
   };
 
   return (
@@ -433,14 +418,14 @@ setTimeout(() => {
         {currentWorkout?.exercises.map((exercise) => {
           const isBodyweight = isBodyweightExercise(exercise);
           const isExpanded = expandedExercises.has(exercise.exerciseId);
-          
+
           return (
             <View key={exercise.exerciseId} style={styles.exerciseBlock}>
               <View style={styles.exerciseHeader}>
                 <Text style={styles.exerciseTitle}>{toTitleCase(exercise.exerciseName)}</Text>
                 <View style={styles.exerciseHeaderButtons}>
                   {exercise.gifUrl && (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       onPress={() => toggleExerciseDemo(exercise.exerciseId)}
                       style={[styles.demoButton, isExpanded && styles.demoButtonActive]}
                     >
@@ -449,7 +434,7 @@ setTimeout(() => {
                       </Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={() => handleRemoveExercise(exercise.exerciseId, exercise.exerciseName)}
                     style={styles.removeButton}
                   >
@@ -461,7 +446,7 @@ setTimeout(() => {
               {/* Exercise Demonstration Section */}
               {isExpanded && exercise.gifUrl && (
                 <View style={styles.demoSection}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={() => openGifModal(exercise.gifUrl, exercise.exerciseName)}
                     style={styles.gifContainer}
                   >
@@ -528,7 +513,7 @@ setTimeout(() => {
                 <Text style={styles.modalTitle}>
                   {selectedGif ? toTitleCase(selectedGif.name) : ''}
                 </Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setShowGifModal(false)}
                   style={styles.modalCloseButton}
                 >

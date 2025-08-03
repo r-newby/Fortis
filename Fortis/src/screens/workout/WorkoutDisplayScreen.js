@@ -178,9 +178,8 @@ const checkProgressionSuggestion = async (intensity) => {
 
   const recent = history.filter(h => new Date(h.date) >= threeWeeksAgo);
 
-  // Skip if there's no historyf
+  // Skip if there's no history
   if (recent.length === 0) {
-    console.log('No history. skipping progression check.');
     return;
   }
 
@@ -253,14 +252,6 @@ const checkProgressionSuggestion = async (intensity) => {
 
 const handleProgressionDecision = async (accepted) => {
   if (!progressionSuggestion) return;
-
-  console.log('Inserting suggestion:', {
-  type,
-  accepted,
-  newWeight,
-  newReps,
-  addSet,
-});
 
   const {
     type,

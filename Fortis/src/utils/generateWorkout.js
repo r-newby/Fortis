@@ -1,7 +1,5 @@
 export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessLevel, goal }) {
-  console.log('=== WORKOUT GENERATION START ===');
-  console.log('Input params:', { muscleGroup, equipment, fitnessLevel, goal });
-  console.log('Available exercises:', allExercises.length);
+
 
   // Equipment mapping - now using exact database values as IDs
   // No mapping needed since we're using database values directly
@@ -51,23 +49,21 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
   const { sets, reps } = goalConfig[goal] || goalConfig.general;
   const modifier = levelModifier[fitnessLevel] || 1.0;
 
-  console.log('Config:', { sets, reps, modifier });
 
   // Normalize input
   const normalizedMuscleGroup = muscleGroup ? muscleGroup.toLowerCase().trim() : '';
   
   // Get target muscles for the selected muscle group
   const targetMuscles = muscleGroupMapping[normalizedMuscleGroup] || [normalizedMuscleGroup];
-  console.log('Target muscles:', targetMuscles);
+ 
 
   // Map equipment to database values
   const dbEquipment = equipment.map(eq => {
     const mapped = equipmentMapping[eq.toLowerCase().trim()];
-    console.log(`Equipment mapping: ${eq} → ${mapped || eq}`);
     return mapped || eq;
   });
 
-  console.log('Mapped equipment:', dbEquipment);
+
 
   // Filter exercises
   const matchingExercises = allExercises.filter(exercise => {
@@ -109,30 +105,11 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
       return exEquipment.includes(normalizedEq);
     });
 
-    console.log(`Exercise: ${exercise.name || 'Unknown'}`);
-    console.log(`  Body Part: "${exBodyPart}" | Target: "${exTarget}" | Equipment: "${exEquipment}"`);
-    console.log(`  Muscle Match: ${muscleMatch} | Equipment Match: ${equipmentMatch}`);
-    console.log(`  Include: ${muscleMatch && equipmentMatch}`);
-    console.log('---');
+
 
     return muscleMatch && equipmentMatch;
   });
 
-  console.log(`Found ${matchingExercises.length} matching exercises`);
-
-  if (matchingExercises.length === 0) {
-    console.log('No exercises found!');
-    
-    // Debug information
-    console.log('Available equipment types in DB:', 
-      [...new Set(allExercises.map(ex => ex.equipment).filter(Boolean))]);
-    console.log('Available body parts in DB:', 
-      [...new Set(allExercises.map(ex => ex.body_part).filter(Boolean))]);
-    console.log('Available targets in DB:', 
-      [...new Set(allExercises.map(ex => ex.target).filter(Boolean))]);
-    
-    return [];
-  }
 
   // Prioritize compound movements
   const prioritizedExercises = [...matchingExercises].sort((a, b) => {
@@ -228,7 +205,7 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
       else weight = Math.round(65 * modifier);
     }
 
-    console.log(`💪 Selected: ${exercise.name} - ${exerciseSets}x${exerciseReps}${weight ? ` @ ${weight}lbs` : ''}`);
+   
 
     return {
       id: exercise.id,
@@ -243,8 +220,7 @@ export function generateWorkout({ allExercises, equipment, muscleGroup, fitnessL
     };
   });
 
-  console.log('=== WORKOUT GENERATION COMPLETE ===');
-  console.log(`Generated ${workout.length} exercises`);
+
   
   return workout;
 }
